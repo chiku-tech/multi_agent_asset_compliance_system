@@ -5,6 +5,8 @@
   display: flex;
   min-height: 100vh;
   position: relative;
+  width: 100%;
+  flex: 1;
 }
 
 /* Sidebar Styling */
@@ -36,8 +38,8 @@
 }
 
 /* Max Container for Content Alignments */
-.content-container {
-  max-width: var(--max-content-width);
+.page-container {
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -69,6 +71,7 @@ body.no-sidebar .main-viewport {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: var(--space-gutter);
+  width: 100%;
 }
 
 .col-1  { grid-column: span 1; }

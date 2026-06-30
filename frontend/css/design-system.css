@@ -201,11 +201,10 @@ body {
 }
 
 .main-content {
-  margin-left: 260px;
   flex: 1;
-  padding: 32px;
-  max-width: calc(1440px - 260px);
-  width: calc(100% - 260px);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 /* Page Header */
