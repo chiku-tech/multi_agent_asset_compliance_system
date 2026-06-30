@@ -27,6 +27,7 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response, status
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mangum import Mangum
@@ -48,7 +49,14 @@ settings = get_settings()
 logger = structlog.get_logger(__name__)
 
 # Routes that do NOT require API key authentication
-_PUBLIC_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
+_PUBLIC_PATHS = {
+    "/health",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/api/v1/auth/config",
+    "/api/v1/auth/verify",
+}
 
 
 @asynccontextmanager
@@ -156,7 +164,11 @@ def create_app() -> FastAPI:
         Uses hmac.compare_digest to prevent timing attacks.
         This key is shared with the enterprise asset management system.
         """
-        if request.url.path in _PUBLIC_PATHS:
+        # Bypass API key check for non-api routes (e.g. static assets) and public paths
+        if (
+            request.url.path in _PUBLIC_PATHS
+            or not request.url.path.startswith("/api/v1/")
+        ):
             return await call_next(request)
 
         provided_key = request.headers.get("X-API-Key", "")
@@ -194,6 +206,10 @@ def create_app() -> FastAPI:
     async def health_check() -> dict[str, str]:
         """Returns service status. No authentication required."""
         return {"status": "ok"}
+
+    # ── Serve Frontend Static Files ───────────────────────────────────────────
+    if settings.serve_frontend:
+        app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
     return app
 

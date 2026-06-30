@@ -13,11 +13,12 @@ Workflow per document:
 All document types are processed sequentially within a single Lambda invocation.
 """
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
@@ -210,4 +211,113 @@ async def ingest_documents(
         vectors_deleted=total_deleted,
         completed_at=datetime.now(UTC),
         namespace=f"asset_{request.asset_id}",
+    )
+
+
+@router.post(
+    "/upload",
+    response_model=IngestResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Upload and ingest documents into Pinecone",
+    description="Accepts multiple files via form upload, writes them to S3, and embeds/upserts them into Pinecone.",
+)
+async def upload_and_ingest_documents(
+    asset_id: str = Form(..., min_length=1),
+    event: str = Form(..., pattern="^(create|add)$"),
+    files: list[UploadFile] = File(...),
+    index: PineconeDep = None,
+    embeddings: EmbeddingsDep = None,
+    image_llm: ImageLLMDep = None,
+    s3_client: S3Dep = None,
+    settings: SettingsDep = None,
+) -> IngestResponse:
+    """Upload files to S3 and trigger Pinecone vector ingestion."""
+    log = logger.bind(asset_id=asset_id, event=event)
+
+    total_upserted = 0
+    total_deleted = 0
+
+    if event == "create":
+        # Idempotency guard: if namespace already has vectors, skip processing
+        if pinecone_service.namespace_has_docs(index, asset_id):
+            log.info("upload_skipped_namespace_exists")
+            return IngestResponse(
+                asset_id=asset_id,
+                event=event,
+                documents_processed=0,
+                vectors_upserted=0,
+                vectors_deleted=0,
+                completed_at=datetime.now(UTC),
+                namespace=f"asset_{asset_id}",
+            )
+
+    documents = []
+    # Process each uploaded file: save to S3 first
+    for upload_file in files:
+        filename = upload_file.filename or "unnamed_file"
+        # Generate a safe doc_id and key from filename
+        safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
+        doc_id = f"doc_{safe_name.rsplit('.', 1)[0]}"
+        s3_key = f"{asset_id}/{safe_name}"
+
+        # Determine doc_type from filename extension
+        ext = safe_name.lower().rsplit(".", 1)[-1] if "." in safe_name else ""
+        if ext in ("jpg", "jpeg", "png", "webp", "gif"):
+            doc_type = "installation_image"
+        elif ext == "pdf":
+            doc_type = "compliance_spec"
+            if "manual" in safe_name.lower() or "user" in safe_name.lower():
+                doc_type = "user_manual"
+            elif "safety" in safe_name.lower() or "msds" in safe_name.lower():
+                doc_type = "safety_sheet"
+        else:
+            doc_type = "other"
+
+        # Read file bytes
+        raw_bytes = await upload_file.read()
+        
+        # Save to S3
+        await asyncio.to_thread(
+            s3_client.put_object,
+            Bucket=settings.s3_bucket_name,
+            Key=s3_key,
+            Body=raw_bytes,
+        )
+
+        document = S3Document(
+            s3_key=s3_key,
+            doc_id=doc_id,
+            doc_type=doc_type,
+            filename=filename,
+        )
+        documents.append(document)
+
+    # Process all uploaded documents
+    for document in documents:
+        upserted = await _ingest_document(
+            document,
+            asset_id,
+            index,
+            s3_client,
+            embeddings,
+            image_llm,
+            settings,
+        )
+        total_upserted += upserted
+
+    log.info(
+        "upload_ingest_complete",
+        documents_processed=len(files),
+        vectors_upserted=total_upserted,
+        business_metric="IngestionVolume",
+    )
+
+    return IngestResponse(
+        asset_id=asset_id,
+        event=event,
+        documents_processed=len(files),
+        vectors_upserted=total_upserted,
+        vectors_deleted=total_deleted,
+        completed_at=datetime.now(UTC),
+        namespace=f"asset_{asset_id}",
     )

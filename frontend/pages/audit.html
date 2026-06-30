@@ -1,0 +1,77 @@
+<!-- Audit Assets Page View - Asset Compliance AI -->
+<div class="content-container">
+  <div>
+    <h1 class="headline-lg">Run Compliance Audit</h1>
+    <p class="body-sm" style="color: var(--on-surface-variant); margin: 4px 0 0 0;">
+      Trigger the multi-agent compliance validation pipelines for a specific asset file or folder.
+    </p>
+  </div>
+
+  <div class="grid-12 fill-page" style="gap: 24px;">
+    <!-- Audit Inputs and Console -->
+    <div class="col-8" style="display: flex; flex-direction: column; gap: 24px;">
+      <!-- Input Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Run Compliance Check</h3>
+        </div>
+        <div class="card-body">
+          <form id="ingest-form">
+            <div class="form-group">
+              <label for="ingest-path" class="form-label">Asset Path or Name</label>
+              <input 
+                type="text" 
+                id="ingest-path" 
+                class="input-field form-control" 
+                placeholder="e.g. data/policy_draft.pdf or /var/assets/data_share_agreement.txt" 
+                required
+              >
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="ingest-submit-btn">
+              ⚡ Begin Audit Check
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Streaming Console Container -->
+      <div class="card fill-page" style="display: flex; flex-direction: column;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+          <h3 class="card-title" style="margin-bottom: 0;">Multi-Agent Operational Log</h3>
+          <span id="audit-status-badge" class="badge badge-insufficient">IDLE</span>
+        </div>
+        <div class="card-body" style="padding: 0; flex: 1; display: flex; flex-direction: column;">
+          <div id="ingest-console" class="streaming-console" style="
+            flex: 1;
+            min-height: 200px;
+            overflow-y: auto;
+            background-color: #000000;
+            padding: 16px;
+            font-family: var(--font-code);
+            font-size: 12px;
+            line-height: 1.5;
+            color: #33ff33;
+          ">
+            <div class="log-entry">System ready. Enter an asset path above to begin analysis.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAG Citation side panel (4-col / right-aligned) -->
+    <div class="col-4" style="display: flex; flex-direction: column;">
+      <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="card-header">
+          <h3 class="card-title">Regulation RAG Citations</h3>
+        </div>
+        <div class="card-body" style="flex-grow: 1; overflow-y: auto;" id="citations-container">
+          <div style="text-align: center; color: var(--on-surface-dim); padding-top: 40px;" id="no-citations-msg">
+            <span style="font-size: 24px; display: block; margin-bottom: 8px;">📚</span>
+            No citations referenced yet. Start an audit to match regulatory sections.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     # ── Local Offline Mode ────────────────────────────────────────────────────
     local_offline: bool = Field(default=False, description="Enable local offline development mode")
+    serve_frontend: bool = Field(default=True, description="Serve frontend static assets from FastAPI")
 
     # ── AWS ───────────────────────────────────────────────────────────────────
     aws_region: str = Field(default="us-east-1", description="AWS region for all SDK calls")

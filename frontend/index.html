@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asset Compliance AI</title>
+  
+  <!-- Font Integrations -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  
+  <!-- Custom Nav Item Overrides -->
+  <style>
+    .sidebar-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      color: var(--on-surface-variant);
+      text-decoration: none;
+      font-size: var(--fs-body-md);
+      font-weight: 500;
+      border-radius: var(--radius-default);
+      transition: all var(--transition-fast);
+    }
+    
+    .sidebar-nav-link:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--on-surface);
+    }
+    
+    .sidebar-nav-link.active {
+      background-color: rgba(37, 99, 235, 0.1);
+      color: var(--on-surface);
+      border-left: 3px solid var(--cobalt-primary);
+      border-radius: 0 var(--radius-default) var(--radius-default) 0;
+      padding-left: 13px;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Mobile Header Navigation Drawer Toggle -->
+  <header style="
+    display: none;
+    background-color: var(--slate-900);
+    border-bottom: 1px solid var(--slate-800);
+    padding: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+  " id="mobile-header">
+    <div class="label-caps" style="color: var(--on-surface); font-size: 14px; font-weight: 700;">Asset Compliance AI</div>
+    <button class="btn btn-secondary" id="mobile-sidebar-toggle" style="padding: 6px 12px; font-size: 14px;">Menu</button>
+  </header>
+  
+  <style>
+    @media (max-width: 768px) {
+      #mobile-header {
+        display: flex !important;
+      }
+    }
+  </style>
+
+  <!-- Core Layout wrapper -->
+  <div class="app-wrapper">
+    <!-- Persistent Left Navigation Sidebar -->
+    <aside class="sidebar-container">
+      <div style="padding: 24px; border-bottom: 1px solid var(--slate-800); display: flex; flex-direction: column; gap: 4px;">
+        <h1 class="headline-sm" style="margin: 0; font-weight: 700; letter-spacing: -0.01em; color: var(--on-surface);">
+          Asset Compliance <span style="color: var(--cobalt-primary);">AI</span>
+        </h1>
+        <span class="label-caps" style="color: var(--on-surface-dim); font-size: 9px; font-weight: 600;">
+          Enterprise Control Center
+        </span>
+      </div>
+      
+      <!-- Nav Menu items -->
+      <nav style="padding: 20px 12px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+        <a href="#/dashboard" class="sidebar-nav-link sidebar-link">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="#/ingest" class="sidebar-nav-link sidebar-link">
+          <span>📥</span> Ingest Assets
+        </a>
+        <a href="#/audit" class="sidebar-nav-link sidebar-link">
+          <span>🛡️</span> Compliance Audit
+        </a>
+        <a href="#/chat" class="sidebar-nav-link sidebar-link">
+          <span>💬</span> Auditor Q&A
+        </a>
+        <a href="#/admin" class="sidebar-nav-link sidebar-link">
+          <span>💼</span> Administration
+        </a>
+        <a href="#/settings" class="sidebar-nav-link sidebar-link">
+          <span>⚙️</span> Settings
+        </a>
+      </nav>
+      
+      <!-- Session Actions footer -->
+      <div style="padding: 16px 12px; border-top: 1px solid var(--slate-800);">
+        <button class="btn btn-ghost" id="sidebar-logout-btn" style="width: 100%; justify-content: flex-start; gap: 12px;">
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Dynamic Content Container -->
+    <main class="main-viewport" id="main-content-viewport">
+      <div class="content-container" id="main-content">
+        <!-- Pages loaded dynamically via router.js -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Bootstrapping / State scripts -->
+  <script type="module" src="/js/config.js"></script>
+  
+  <!-- Component Scripts -->
+  <script src="/js/components/toast.js"></script>
+  <script src="/js/components/modal.js"></script>
+  <script src="/js/components/sidebar.js"></script>
+  <script src="/js/components/progress-tracker.js"></script>
+  <script src="/js/components/verdict-card.js"></script>
+  <script src="/js/components/evidence-panel.js"></script>
+  <script src="/js/stream-reader.js"></script>
+  
+  <!-- Backend API Integrations -->
+  <script src="/js/api-client.js"></script>
+  
+  <!-- Routing engine -->
+  <script src="/js/router.js"></script>
+</body>
+</html>

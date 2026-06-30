@@ -1,0 +1,393 @@
+<!-- Ingest Assets Page View - Asset Compliance AI -->
+<div class="content-container">
+  <div>
+    <h1 class="headline-lg">Document Ingestion</h1>
+    <p class="body-sm" style="color: var(--on-surface-variant); margin: 4px 0 0 0;">
+      Ingest asset reference sheets, PDFs, and installation images into the vector database.
+    </p>
+  </div>
+
+  <style>
+    /* Tabs Component styles */
+    .ingest-tabs-container {
+      margin-top: 24px;
+    }
+    .ingest-tab-headers {
+      display: flex;
+      border-bottom: 1px solid var(--slate-800);
+      margin-bottom: 20px;
+      gap: 4px;
+    }
+    .ingest-tab-header {
+      padding: 10px 20px;
+      color: var(--on-surface-variant);
+      border: none;
+      background: none;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition-fast);
+    }
+    .ingest-tab-header:hover {
+      color: var(--on-surface);
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    .ingest-tab-header.active {
+      color: var(--cobalt-primary);
+      border-bottom-color: var(--cobalt-primary);
+    }
+    .ingest-tab-content {
+      display: none;
+    }
+    .ingest-tab-content.active {
+      display: block;
+    }
+
+    /* File Dropzone */
+    .ingest-file-dropzone {
+      border: 2px dashed var(--slate-700);
+      border-radius: var(--radius-md);
+      padding: 40px 24px;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+    .ingest-file-dropzone:hover, .ingest-file-dropzone.dragover {
+      border-color: var(--cobalt-primary);
+      background-color: rgba(37, 99, 235, 0.05);
+    }
+    .dropzone-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .dropzone-text {
+      color: var(--on-surface-variant);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .dropzone-subtext {
+      font-size: 12px;
+      color: var(--on-surface-dim);
+    }
+
+    /* File List & Items */
+    .ingest-file-list {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ingest-file-item {
+      background-color: var(--slate-950);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-default);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .file-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex-grow: 1;
+    }
+    .file-item-name {
+      font-weight: 600;
+      color: var(--on-surface);
+      word-break: break-all;
+    }
+    .file-item-meta {
+      font-size: 12px;
+      color: var(--on-surface-variant);
+    }
+    .file-item-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .doc-type-select {
+      background-color: var(--slate-900);
+      border: 1px solid var(--slate-700);
+      color: var(--on-surface);
+      border-radius: var(--radius-default);
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .btn-remove-file {
+      background: none;
+      border: none;
+      color: var(--rose-error);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+    }
+
+    /* Progress Indicator */
+    .upload-progress-container {
+      margin-top: 16px;
+      background-color: var(--slate-800);
+      border-radius: var(--radius-full);
+      height: 8px;
+      overflow: hidden;
+      display: none;
+    }
+    .upload-progress-bar {
+      background-color: var(--cobalt-primary);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Payload text-area and info styles */
+    .textarea-container {
+      position: relative;
+    }
+    .textarea-validation-badge {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      font-size: 11px;
+    }
+
+    /* Ingestion Event description pill */
+    .event-desc-text {
+      font-size: 12px;
+      color: var(--on-surface-variant);
+      margin-top: 4px;
+    }
+
+    /* Result Panel layout */
+    .result-panel {
+      margin-top: 24px;
+      border-left: 4px solid var(--emerald-success);
+    }
+    .result-data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .result-data-item {
+      background-color: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-default);
+      padding: 12px;
+    }
+    .result-data-label {
+      font-size: 11px;
+      color: var(--on-surface-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .result-data-value {
+      font-family: var(--font-code);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--on-surface);
+      margin-top: 4px;
+    }
+  </style>
+
+  <div class="grid-12 fill-page" style="margin-top: 20px;">
+    <!-- Form Panel (8-col) -->
+    <div class="card col-8" style="display: flex; flex-direction: column;">
+      <form id="doc-ingest-form">
+        <!-- Asset ID input -->
+        <div class="form-group">
+          <label for="ingest-asset-id" class="form-label">Asset Identifier (Asset ID)</label>
+          <input 
+            type="text" 
+            id="ingest-asset-id" 
+            class="input-field" 
+            placeholder="e.g. asset-pump-001 or UUID" 
+            required
+          >
+          <div id="asset-id-validation-error" class="form-error-msg" style="display: none;">
+            Asset ID is required and must contain only alphanumeric characters, hyphens, and underscores.
+          </div>
+        </div>
+
+        <!-- Ingest Event radio selection -->
+        <div class="form-group">
+          <label class="form-label">Ingest Lifecycle Event</label>
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 8px;">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="ingest-event" value="create" checked style="accent-color: var(--cobalt-primary);">
+              <div>
+                <strong>Create</strong>
+                <div class="event-desc-text">First ingest (skipped if exists)</div>
+              </div>
+            </label>
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="ingest-event" value="add" style="accent-color: var(--cobalt-primary);">
+              <div>
+                <strong>Add</strong>
+                <div class="event-desc-text">Append new documents</div>
+              </div>
+            </label>
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="ingest-event" value="update" style="accent-color: var(--cobalt-primary);">
+              <div>
+                <strong>Update</strong>
+                <div class="event-desc-text">Surgical replace (doc_id match)</div>
+              </div>
+            </label>
+          </div>
+          <div id="event-validation-error" class="form-error-msg" style="display: none; margin-top: 12px;"></div>
+        </div>
+
+        <!-- Tabbed Container -->
+        <div class="ingest-tabs-container">
+          <div class="ingest-tab-headers">
+            <button type="button" class="ingest-tab-header active" data-tab="tab-direct">Direct File Upload</button>
+            <button type="button" class="ingest-tab-header" data-tab="tab-paste">Paste JSON Payload</button>
+            <button type="button" class="ingest-tab-header" data-tab="tab-json-file">Upload JSON File</button>
+          </div>
+
+          <!-- Tab 1 (Direct Upload) -->
+          <div class="ingest-tab-content active" id="tab-direct">
+            <div class="ingest-file-dropzone" id="direct-upload-dropzone">
+              <span class="dropzone-icon">📥</span>
+              <div class="dropzone-text">Drag and drop PDFs or images here, or <span style="color: var(--cobalt-primary); font-weight: 600;">browse files</span></div>
+              <div class="dropzone-subtext">Supported formats: PDF, PNG, JPG, JPEG (Max: 50MB)</div>
+              <input type="file" id="direct-file-input" multiple accept=".pdf,image/*" style="display: none;">
+            </div>
+            
+            <div class="upload-progress-container" id="direct-upload-progress-container">
+              <div class="upload-progress-bar" id="direct-upload-progress-bar"></div>
+            </div>
+
+            <div class="ingest-file-list" id="direct-file-list">
+              <!-- Selected files will be rendered here dynamically -->
+            </div>
+            
+            <div id="direct-validation-error" class="form-error-msg" style="display: none; margin-top: 12px;"></div>
+          </div>
+
+          <!-- Tab 2 (Paste JSON Payload) -->
+          <div class="ingest-tab-content" id="tab-paste">
+            <div class="textarea-container">
+              <textarea 
+                id="json-payload-textarea" 
+                class="textarea-field" 
+                style="height: 240px; font-family: var(--font-code); font-size: 12px; resize: vertical; line-height: 1.5;"
+                placeholder='{
+  "asset_id": "asset-12345",
+  "event": "create",
+  "documents": [
+    {
+      "s3_key": "asset-12345/manual.pdf",
+      "doc_id": "doc_manual",
+      "doc_type": "user_manual",
+      "filename": "manual.pdf"
+    }
+  ]
+}'
+              ></textarea>
+              <div id="json-validation-badge" class="badge badge-insufficient textarea-validation-badge">JSON Format Pending</div>
+            </div>
+            <div id="json-validation-error" class="form-error-msg" style="display: none; margin-top: 12px;"></div>
+          </div>
+
+          <!-- Tab 3 (Upload JSON File) -->
+          <div class="ingest-tab-content" id="tab-json-file">
+            <div class="ingest-file-dropzone" id="json-file-dropzone">
+              <span class="dropzone-icon">📄</span>
+              <div class="dropzone-text">Drag and drop an IngestRequest JSON file here, or <span style="color: var(--cobalt-primary); font-weight: 600;">browse file</span></div>
+              <div class="dropzone-subtext">Supported formats: .json only</div>
+              <input type="file" id="json-file-input" accept=".json" style="display: none;">
+            </div>
+            <div id="json-file-validation-error" class="form-error-msg" style="display: none; margin-top: 12px;"></div>
+          </div>
+        </div>
+
+        <!-- Submit actions -->
+        <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+          <button type="submit" class="btn btn-primary" id="submit-ingest-btn">
+            ⚡ Submit Document Ingestion
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Info/Help Panel (4-col) -->
+    <div class="card col-4" style="height: fit-content; gap: 16px;">
+      <h3 class="card-title" style="margin-bottom: 0;">Ingestion Guide</h3>
+      <div style="font-size: 13px; color: var(--on-surface-variant); display: flex; flex-direction: column; gap: 12px; line-height: 1.6;">
+        <p>
+          Document Ingestion translates raw specification manuals and images into high-dimensional vector embeddings, mapping them into specific <strong>Asset Namespaces</strong> in the Pinecone vector index.
+        </p>
+        
+        <div>
+          <strong style="color: var(--on-surface);">Pydantic Constraints:</strong>
+          <ul style="padding-left: 20px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+            <li><strong>S3 Key:</strong> Letters, numbers, and <code>/ _ - .</code> only.</li>
+            <li><strong>Doc ID:</strong> Cannot be empty. Must match existing vectors for <em>Update</em> events.</li>
+            <li><strong>Update Event:</strong> Must contain exactly one document for replacement.</li>
+          </ul>
+        </div>
+
+        <div>
+          <strong style="color: var(--on-surface);">Workflow:</strong>
+          <ol style="padding-left: 20px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+            <li>Select or enter your target Asset ID.</li>
+            <li>Provide documents via direct upload, paste, or raw configuration.</li>
+            <li>Submit to begin extraction, text parsing, embedding generation, and Pinecone loading.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ingestion Result Panel -->
+  <div class="card result-panel" id="ingest-result-panel" style="display: none;">
+    <div class="card-header">
+      <h3 class="card-title" style="color: var(--emerald-success); display: flex; align-items: center; gap: 8px;">
+        ✅ Ingestion Pipeline Successful
+      </h3>
+      <span class="badge badge-compliant" id="result-status-badge">COMPLETED</span>
+    </div>
+    <div class="card-body">
+      <p class="body-md">Your files have been successfully processed, chunked, embedded, and mapped in the index.</p>
+      
+      <div class="result-data-grid">
+        <div class="result-data-item">
+          <div class="result-data-label">Pinecone Namespace</div>
+          <div class="result-data-value" id="result-namespace">-</div>
+        </div>
+        <div class="result-data-item">
+          <div class="result-data-label">Asset ID</div>
+          <div class="result-data-value" id="result-asset-id">-</div>
+        </div>
+        <div class="result-data-item">
+          <div class="result-data-label">Documents Processed</div>
+          <div class="result-data-value" id="result-docs-processed">0</div>
+        </div>
+        <div class="result-data-item">
+          <div class="result-data-label">Vectors Upserted</div>
+          <div class="result-data-value" id="result-vectors-upserted">0</div>
+        </div>
+        <div class="result-data-item">
+          <div class="result-data-label">Vectors Deleted</div>
+          <div class="result-data-value" id="result-vectors-deleted">0</div>
+        </div>
+        <div class="result-data-item">
+          <div class="result-data-label">Completed Timestamp</div>
+          <div class="result-data-value" id="result-completed-at" style="font-size: 13px;">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

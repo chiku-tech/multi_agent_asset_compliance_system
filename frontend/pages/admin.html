@@ -1,0 +1,324 @@
+<!-- Operational Admin Page View - Asset Compliance AI -->
+<style>
+  /* Admin layout updates */
+  .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 24px;
+    margin-top: 16px;
+  }
+  
+  .stat-card-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .stat-number-card {
+    background-color: #0b0e14;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 16px;
+    text-align: center;
+  }
+  
+  .stat-number {
+    font-family: var(--font-code);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cobalt-primary);
+    margin: 8px 0;
+  }
+
+  .stat-number-success {
+    color: var(--emerald-success);
+  }
+
+  .stat-number-warning {
+    color: var(--amber-warning);
+  }
+
+  .stat-number-danger {
+    color: var(--rose-error);
+  }
+  
+  .status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #0b0e14;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+  }
+  
+  /* Confirmation Checkboxes list */
+  .confirmation-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: rgba(244, 63, 94, 0.05);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    border-radius: var(--border-radius-sm);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--on-surface);
+  }
+  
+  .checkbox-label input {
+    margin-top: 3px;
+  }
+
+  /* Top settings style */
+  .top-settings {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--slate-900);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 16px 24px;
+    margin-bottom: 16px;
+  }
+  
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<div class="content-container">
+  <!-- Top settings status bar -->
+  <div class="top-settings">
+    <div style="display: flex; gap: 24px; align-items: center;">
+      <div class="status-item">
+        <span class="form-label" style="margin-bottom: 0;">API Status:</span>
+        <span id="api-status-badge" class="badge badge-danger">Not Configured</span>
+      </div>
+      <div class="status-item">
+        <span class="form-label" style="margin-bottom: 0;">Active Asset:</span>
+        <span id="active-asset-badge" class="badge badge-info">sample-pump-001</span>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-secondary" id="configure-api-key-btn">🔐 Configure API Key</button>
+    </div>
+  </div>
+
+  <!-- Page Title Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="headline-md page-title">Operational Administration</h1>
+      <p class="body-sm page-subtitle">Monitor vector space utilization and trigger right-to-erasure workflows.</p>
+    </div>
+  </div>
+
+  <!-- Main Grid Content -->
+  <div class="grid-12 fill-page" style="margin-top: 16px;">
+    
+    <!-- Stats Monitoring Section (8 Columns) -->
+    <div class="col-8">
+      <div class="card" style="height: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 class="headline-sm">Asset Database & Vector Statistics</h2>
+          
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="target-asset-id" class="form-control" style="width: 180px; padding: 6px 12px;" placeholder="Asset ID...">
+            <button class="btn btn-primary" id="fetch-stats-btn" style="padding: 6px 16px;">Refresh</button>
+          </div>
+        </div>
+        
+        <!-- Loading Stats Panel -->
+        <div id="stats-loading" style="display: none; justify-content: center; align-items: center; flex-direction: column; padding: 60px 0;">
+          <span style="font-size: 32px; animation: spin 1s linear infinite;">⚙️</span>
+          <p class="body-md" style="margin-top: 12px; color: var(--on-surface-variant)">Querying operational stats from Pinecone & DynamoDB...</p>
+        </div>
+
+        <!-- Statistics Cards Grid -->
+        <div id="stats-content">
+          <div class="stat-card-row">
+            <div class="stat-number-card">
+              <div class="label-caps" style="color: var(--on-surface-variant)">Vector Count</div>
+              <div class="stat-number" id="stats-vector-count">0</div>
+              <div class="body-sm" style="font-size: 11px; color: var(--on-surface-variant)">Pinecone Index</div>
+            </div>
+            <div class="stat-number-card">
+              <div class="label-caps" style="color: var(--on-surface-variant)">Total Runs</div>
+              <div class="stat-number" id="stats-total-runs">0</div>
+              <div class="body-sm" style="font-size: 11px; color: var(--on-surface-variant)">Audit Executions</div>
+            </div>
+            <div class="stat-number-card">
+              <div class="label-caps" style="color: var(--on-surface-variant)">Namespace</div>
+              <div class="stat-number" id="stats-namespace-name" style="font-size: 14px; word-break: break-all; margin: 18px 0;">asset_N/A</div>
+              <div class="body-sm" style="font-size: 11px; color: var(--on-surface-variant)">Target Identifier</div>
+            </div>
+            <div class="stat-number-card">
+              <div class="label-caps" style="color: var(--on-surface-variant)">Latest Run</div>
+              <div class="stat-number" id="stats-latest-run" style="font-size: 12px; font-weight: normal; margin: 19px 0;">Never</div>
+              <div class="body-sm" style="font-size: 11px; color: var(--on-surface-variant)">Timestamp</div>
+            </div>
+          </div>
+          
+          <h3 class="label-caps" style="color: var(--on-surface-variant); margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+            Audit Verdict & Status History
+          </h3>
+          
+          <div class="grid-12" style="gap: 16px; margin-bottom: 16px;">
+            <div class="col-6">
+              <div class="status-list">
+                <div class="status-row">
+                  <span class="body-md">COMPLETE (Success)</span>
+                  <span class="badge badge-success" id="count-complete">0</span>
+                </div>
+                <div class="status-row">
+                  <span class="body-md">IN_PROGRESS (Running)</span>
+                  <span class="badge badge-info" id="count-inprogress">0</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="status-list">
+                <div class="status-row">
+                  <span class="body-md">FAILED (Errors)</span>
+                  <span class="badge badge-danger" id="count-failed">0</span>
+                </div>
+                <div class="status-row">
+                  <span class="body-md">ERASED (GDPR Deleted)</span>
+                  <span class="badge badge-warning" id="count-erased">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <p class="body-sm" style="color: var(--on-surface-variant);">
+            * Data is fetched in real-time from active index state endpoints. Total runs represent registered records in the persistent audit database.
+          </p>
+        </div>
+        
+      </div>
+    </div>
+    
+    <!-- Right Danger Zone Panel (4 Columns) -->
+    <div class="col-4">
+      <div class="card danger-zone" style="height: 100%;">
+        <h2 class="headline-sm">GDPR Data Erasure</h2>
+        <p class="body-sm" style="margin-top: 10px; color: var(--on-surface-variant); line-height: 1.6;">
+          Initiate a full Right-to-Erasure (GDPR Article 17) request for the current asset.
+        </p>
+        
+        <div style="background-color: rgba(244, 63, 94, 0.1); border-left: 3px solid var(--rose-error); padding: 12px; margin: 16px 0; border-radius: var(--border-radius-sm);">
+          <strong style="color: #ffffff; display: block; font-size: 13px; margin-bottom: 4px;">⚠️ CRITICAL CONSEQUENCES:</strong>
+          <ul style="padding-left: 16px; font-size: 12px; color: var(--on-surface-variant); display: flex; flex-direction: column; gap: 6px;">
+            <li>Deletes all vector embeddings inside Pinecone.</li>
+            <li>Deletes uploaded reference manuals in S3 bucket.</li>
+            <li>Marks DynamoDB execution histories as ERASED.</li>
+            <li><strong>This action cannot be undone.</strong></li>
+          </ul>
+        </div>
+        
+        <div style="margin-top: auto; padding-top: 20px;">
+          <button class="btn btn-danger" id="delete-asset-btn" style="width: 100%;">
+            🗑️ Delete Asset Data
+          </button>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<!-- API Key Configuration Modal -->
+<div class="modal-overlay" id="api-key-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title headline-sm">Configure API Key</h3>
+      <button class="modal-close" id="close-api-modal-btn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="body-sm" style="color: var(--on-surface-variant); margin-bottom: 16px;">
+        Enter the secret API key to authorize calls to the compliance microservice endpoints.
+      </p>
+      <div class="form-group">
+        <label class="form-label" for="api-key-input">X-API-Key</label>
+        <input type="password" id="api-key-input" class="form-control" placeholder="Enter API secret key...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancel-api-modal-btn">Cancel</button>
+      <button class="btn btn-primary" id="save-api-modal-btn">Verify & Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- GDPR Erasure Triple Confirmation Modal -->
+<div class="modal-overlay" id="erasure-modal">
+  <div class="modal" style="max-width: 550px; border: 1px solid var(--rose-error);">
+    <div class="modal-header" style="border-bottom: 1px solid rgba(244, 63, 94, 0.2); padding-bottom: 12px;">
+      <h3 class="modal-title headline-sm" style="color: var(--rose-error); display: flex; align-items: center; gap: 8px;">
+        🛑 GDPR Right-to-Erasure Request
+      </h3>
+      <button class="modal-close" id="close-erasure-modal-btn">&times;</button>
+    </div>
+    <div class="modal-body" style="padding-top: 16px;">
+      <p class="body-md" style="margin-bottom: 16px; font-weight: 500;">
+        You are about to permanently erase all records for asset: <span id="erasure-target-display" style="font-family: var(--font-code); color: var(--rose-error); background: rgba(244, 63, 94, 0.1); padding: 2px 6px; border-radius: 4px;">sample-pump-001</span>.
+      </p>
+      
+      <p class="body-sm" style="color: var(--on-surface-variant); margin-bottom: 16px; line-height: 1.5;">
+        To complete this request, you must complete the triple confirmation checks:
+      </p>
+      
+      <div class="confirmation-checks">
+        <label class="checkbox-label">
+          <input type="checkbox" id="check-vector-deletion">
+          <span>Confirm: Delete namespace index and all vector embeddings from Pinecone index.</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="check-db-erasure">
+          <span>Confirm: Permanently mark all associated DynamoDB run reports as <strong>ERASED</strong>.</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="check-s3-erasure">
+          <span>Confirm: Permanently delete source PDF manuals and images from S3 storage.</span>
+        </label>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label" id="confirm-input-label" style="font-weight: 600;">
+          To confirm erasure, type the Asset ID "<span id="expected-asset-id-text" style="font-family: var(--font-code); color: #ffffff;">sample-pump-001</span>" below:
+        </label>
+        <input type="text" id="confirm-asset-id-input" class="form-control" placeholder="Type Asset ID exactly..." autocomplete="off">
+        <div id="confirmation-mismatch" style="color: var(--rose-error); font-size: 12px; margin-top: 4px; display: none;">Asset ID does not match.</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+      <button class="btn btn-secondary" id="cancel-erasure-modal-btn">Cancel</button>
+      <button class="btn btn-danger" id="execute-erasure-btn" disabled>
+        💥 Permanently Erase All Data
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,169 @@
+/* Layout Styles - Asset Compliance AI */
+
+/* App Container Wrapper */
+.app-wrapper {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Sidebar Styling */
+.sidebar-container {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--slate-900);
+  border-right: 1px solid var(--slate-800);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal);
+}
+
+/* Main Viewport Styling */
+.main-viewport {
+  margin-left: var(--sidebar-width);
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--space-margin-page);
+  width: calc(100% - var(--sidebar-width));
+  transition: margin var(--transition-normal), width var(--transition-normal);
+}
+
+/* Max Container for Content Alignments */
+.content-container {
+  max-width: var(--max-content-width);
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gutter);
+  flex: 1;
+}
+
+/* Utility to force a container or grid to fill remaining vertical space */
+.fill-page {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Hide Sidebar State (e.g. for Login) */
+body.no-sidebar .sidebar-container {
+  transform: translateX(-100%);
+  display: none;
+}
+
+body.no-sidebar .main-viewport {
+  margin-left: 0;
+  width: 100%;
+  padding: 0;
+}
+
+/* 12-Column Grid System */
+.grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-gutter);
+}
+
+.col-1  { grid-column: span 1; }
+.col-2  { grid-column: span 2; }
+.col-3  { grid-column: span 3; }
+.col-4  { grid-column: span 4; }
+.col-5  { grid-column: span 5; }
+.col-6  { grid-column: span 6; }
+.col-7  { grid-column: span 7; }
+.col-8  { grid-column: span 8; }
+.col-9  { grid-column: span 9; }
+.col-10 { grid-column: span 10; }
+.col-11 { grid-column: span 11; }
+.col-12 { grid-column: span 12; }
+
+/* Common Flex Rows & Columns */
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+/* Login Layout specifically */
+.login-layout {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--charcoal-bg);
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--slate-900);
+  border: 1px solid var(--slate-800);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+/* RAG Citation Panel Grid spans */
+.chat-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-gutter);
+}
+
+@media (max-width: 1024px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive Overrides (Tablets & Mobile) */
+@media (max-width: 768px) {
+  .sidebar-container {
+    transform: translateX(-100%);
+    position: fixed;
+    height: 100vh;
+    box-shadow: 10px 0 20px rgba(0,0,0,0.5);
+  }
+  
+  .sidebar-container.active {
+    transform: translateX(0);
+  }
+
+  .main-viewport {
+    margin-left: 0;
+    width: 100%;
+    padding: var(--space-gutter);
+  }
+  
+  /* Collapsed Grid */
+  .grid-12 > [class*="col-"] {
+    grid-column: span 12;
+  }
+}
