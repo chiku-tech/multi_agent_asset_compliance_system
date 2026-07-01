@@ -108,6 +108,63 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
+
+  /* Responsive Design for Admin Page */
+  @media (max-width: 768px) {
+    .stat-card-row {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    
+    .top-settings {
+      flex-direction: column;
+      gap: 16px;
+      padding: 12px 16px;
+    }
+    
+    .top-settings > div:first-child {
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    
+    .top-settings > div:last-child {
+      width: 100%;
+    }
+    
+    .top-settings > div:last-child button {
+      width: 100%;
+    }
+    
+    #target-asset-id {
+      width: 100% !important;
+    }
+    
+    .card > div:first-child {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .card > div:first-child > div:last-child {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .stat-number {
+      font-size: 22px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .stat-card-row {
+      grid-template-columns: 1fr;
+    }
+    
+    .stat-number {
+      font-size: 20px;
+    }
+  }
 </style>
 
 <div class="page-container">

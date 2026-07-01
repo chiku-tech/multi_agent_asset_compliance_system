@@ -57,6 +57,60 @@
           });
         });
       }
+
+      // Handle desktop sidebar collapse/expand toggle
+      this.initCollapse();
+    },
+
+    initCollapse() {
+      const toggleBtn = document.getElementById('desktop-sidebar-toggle');
+      const sidebarContainer = document.querySelector('.sidebar-container');
+      const mainViewport = document.querySelector('.main-viewport');
+      
+      if (!toggleBtn || !sidebarContainer || !mainViewport) {
+        console.log('Sidebar collapse elements not found:', { toggleBtn: !!toggleBtn, sidebarContainer: !!sidebarContainer, mainViewport: !!mainViewport });
+        return;
+      }
+
+      // Restore saved state from localStorage
+      const savedState = localStorage.getItem('sidebarCollapsed');
+      if (savedState === 'true') {
+        sidebarContainer.classList.add('collapsed');
+        mainViewport.classList.add('sidebar-collapsed');
+        this.updateToggleIcon(toggleBtn, true);
+      }
+
+      // Toggle button click handler
+      toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isCollapsed = sidebarContainer.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+          // Expand sidebar
+          sidebarContainer.classList.remove('collapsed');
+          mainViewport.classList.remove('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'false');
+          this.updateToggleIcon(toggleBtn, false);
+        } else {
+          // Collapse sidebar
+          sidebarContainer.classList.add('collapsed');
+          mainViewport.classList.add('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'true');
+          this.updateToggleIcon(toggleBtn, true);
+        }
+      });
+    },
+
+    updateToggleIcon(button, isCollapsed) {
+      if (isCollapsed) {
+        button.innerHTML = '»'; // Right chevron when collapsed
+        button.title = 'Expand sidebar';
+      } else {
+        button.innerHTML = '«'; // Left chevron when expanded
+        button.title = 'Collapse sidebar';
+      }
     }
   };
 

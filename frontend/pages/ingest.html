@@ -198,6 +198,61 @@
       color: var(--on-surface);
       margin-top: 4px;
     }
+
+    /* Responsive Design for Ingest Page */
+    @media (max-width: 768px) {
+      .ingest-tab-headers {
+        flex-wrap: wrap;
+      }
+      
+      .ingest-tab-header {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+      
+      .ingest-file-dropzone {
+        padding: 24px 16px;
+      }
+      
+      .dropzone-icon {
+        font-size: 28px;
+      }
+      
+      .file-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .file-item-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .doc-type-select {
+        flex: 1;
+      }
+      
+      .result-data-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .ingest-tab-header {
+        flex: 1;
+        text-align: center;
+        padding: 8px 6px;
+        font-size: 12px;
+      }
+      
+      .result-data-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .result-data-value {
+        font-size: 16px;
+      }
+    }
   </style>
 
   <div class="grid-12 fill-page" style="margin-top: 20px;">

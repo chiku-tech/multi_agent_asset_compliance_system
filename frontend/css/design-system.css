@@ -599,3 +599,132 @@ select.form-control {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--slate-600);
 }
+
+/* Responsive Utilities */
+.hide-mobile {
+  display: initial;
+}
+
+.show-mobile {
+  display: none;
+}
+
+.hide-tablet {
+  display: initial;
+}
+
+.show-tablet {
+  display: none;
+}
+
+/* Responsive Typography Adjustments */
+@media (max-width: 1024px) {
+  .headline-lg {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  
+  .headline-md {
+    font-size: 22px;
+    line-height: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  .headline-lg {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  
+  .headline-md {
+    font-size: 20px;
+    line-height: 26px;
+  }
+  
+  .headline-sm {
+    font-size: 16px;
+    line-height: 22px;
+  }
+  
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: initial !important;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .settings-bar {
+    margin-left: 0;
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .settings-bar-left,
+  .settings-bar-right {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .modal {
+    max-width: calc(100vw - 32px);
+    padding: 24px;
+  }
+  
+  #toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+  
+  .toast {
+    min-width: auto;
+    max-width: 100%;
+  }
+  
+  .login-card {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hide-tablet {
+    display: none !important;
+  }
+  
+  .show-tablet {
+    display: initial !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .headline-lg {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  
+  .headline-md {
+    font-size: 18px;
+    line-height: 24px;
+  }
+  
+  .modal {
+    padding: 20px;
+  }
+  
+  .login-card {
+    padding: 20px;
+  }
+}
