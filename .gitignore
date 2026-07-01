@@ -220,6 +220,8 @@ __marimo__/
 
 #agentic preview
 AGENT_BRIEFING.md
+enterprise_audit_report.md
+DESIGN.md
 
 # ─── Project-specific ───────────────────────────────────────────────────────
 # Never commit real secrets
