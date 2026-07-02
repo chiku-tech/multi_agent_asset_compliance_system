@@ -22,6 +22,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from pinecone import Index, Pinecone
 
+from pydantic import SecretStr
+
 from app.config import Settings, get_settings
 from app.utils.offline_clients import LocalDynamoDBClient, LocalPineconeIndex, LocalS3Client
 
@@ -44,17 +46,17 @@ def _get_pinecone_index() -> Index:
     return index
 
 
-def _get_api_key(provider: str, settings: Settings) -> str | None:
+def _get_api_key(provider: str, settings: Settings) -> SecretStr | None:
     if provider == "anthropic" and settings.anthropic_api_key:
-        return settings.anthropic_api_key.get_secret_value()
+        return settings.anthropic_api_key
     if provider == "openai" and settings.openai_api_key:
-        return settings.openai_api_key.get_secret_value()
+        return settings.openai_api_key
     if provider == "google_genai" and settings.google_api_key:
-        return settings.google_api_key.get_secret_value()
+        return settings.google_api_key
     if provider in ("xai", "grok") and settings.xai_api_key:
-        return settings.xai_api_key.get_secret_value()
+        return settings.xai_api_key
     if provider == "openrouter" and settings.openrouter_api_key:
-        return settings.openrouter_api_key.get_secret_value()
+        return settings.openrouter_api_key
     return None
 
 
@@ -72,16 +74,25 @@ def _get_agent_llm(provider: str, model: str) -> BaseChatModel:
             base_url="https://openrouter.ai/api/v1",
         )
         logger.info("llm_client_initialised", provider=provider, model=model)
-        return client  # type: ignore[return-value]
+        return client
+
+    if provider in ("xai", "grok"):
+        from langchain_xai import ChatXAI
+        client_xai = ChatXAI(
+            model=model,
+            api_key=api_key,
+        )
+        logger.info("llm_client_initialised", provider=provider, model=model)
+        return client_xai
 
     # init_chat_model will fallback to os.environ if api_key is None
     kwargs = {"api_key": api_key} if api_key else {}
 
-    client = init_chat_model(  # type: ignore[call-overload]
+    client_init = init_chat_model(  # type: ignore[call-overload]
         model=model, model_provider=provider, **kwargs
     )
     logger.info("llm_client_initialised", provider=provider, model=model)
-    return client  # type: ignore[no-any-return]
+    return client_init  # type: ignore[no-any-return]
 
 
 @lru_cache
@@ -93,7 +104,7 @@ def _get_embeddings_model() -> Embeddings:
 
     kwargs = {"api_key": api_key} if api_key else {}
 
-    embeddings = init_embeddings(model=settings.embedding_model, model_provider=provider, **kwargs)
+    embeddings = init_embeddings(model=settings.embedding_model, provider=provider, **kwargs)
     logger.info("embeddings_initialised", provider=provider, model=settings.embedding_model)
     return embeddings  # type: ignore[return-value]
 
