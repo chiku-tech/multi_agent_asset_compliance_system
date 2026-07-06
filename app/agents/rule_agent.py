@@ -26,6 +26,7 @@ from app.agents.state import AuditState, get_asset_spec_dict
 from app.dependencies import get_rule_agent_llm
 from app.schemas.audit import TriggeredRule
 from app.utils.circuit_breaker import circuit_breaker
+from app.utils.retry import llm_retry
 
 logger = structlog.get_logger(__name__)
 
@@ -79,6 +80,14 @@ class RulesOutput(BaseModel):
     triggered_rules: list[TriggeredRule]
 
 
+@llm_retry
+async def _call_rule_llm(llm: Any, messages: list) -> RulesOutput:
+    """Helper to call rule agent LLM with circuit breaker."""
+    structured_llm = llm.with_structured_output(RulesOutput)
+    cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
+    return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+
+
 async def rule_agent_node(state: AuditState) -> dict[str, Any]:
     """
     Identify violated compliance rules by cross-referencing findings with documents.
@@ -96,11 +105,8 @@ async def rule_agent_node(state: AuditState) -> dict[str, Any]:
             auditor_remarks=state.get("auditor_remarks") or "None provided",
         )
 
-        structured_llm = llm.with_structured_output(RulesOutput)
         messages = [HumanMessage(content=prompt)]
-
-        cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
-        parsed_obj: RulesOutput = await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+        parsed_obj: RulesOutput = await _call_rule_llm(llm, messages)
         triggered_dicts = [rule.model_dump() for rule in parsed_obj.triggered_rules]
 
         logger.info(

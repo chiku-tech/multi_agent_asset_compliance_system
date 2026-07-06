@@ -406,7 +406,9 @@ class LocalPineconeIndex:
             )
         return QueryResponse(matches=matches)
 
-    def list(self, prefix: str | None = None, namespace: str | None = None, limit: int = 100) -> Any:
+    def list(
+        self, prefix: str | None = None, namespace: str | None = None, limit: int = 100
+    ) -> Any:
         """Simulate Pinecone's list method, returning a generator of ID lists."""
         if not namespace or not self.client.collection_exists(collection_name=namespace):
             return

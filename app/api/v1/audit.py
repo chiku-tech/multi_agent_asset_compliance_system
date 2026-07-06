@@ -77,6 +77,7 @@ async def _stream_audit(
     try:
         import asyncio
         from app.config import get_settings
+
         settings = get_settings()
 
         async with asyncio.timeout(settings.audit_timeout_seconds):
@@ -105,24 +106,39 @@ async def _stream_audit(
 
         # Persist the verdict so future retries return the cached result
         if final_verdict is not None:
-            logger.info("compliance_verdict_issued", verdict=final_verdict["compliance_status"], business_metric="ComplianceVerdictIssued")
+            logger.info(
+                "compliance_verdict_issued",
+                verdict=final_verdict["compliance_status"],
+                business_metric="ComplianceVerdictIssued",
+            )
             dynamodb_service.complete_audit_run(
                 dynamodb_client, table_name, request.run_id, final_verdict
             )
 
     except TimeoutError as exc:
-        logger.error("audit_stream_timeout", run_id=request.run_id, timeout=settings.audit_timeout_seconds)
-        dynamodb_service.fail_audit_run(dynamodb_client, table_name, request.run_id, f"Audit timed out after {settings.audit_timeout_seconds} seconds")
+        logger.error(
+            "audit_stream_timeout", run_id=request.run_id, timeout=settings.audit_timeout_seconds
+        )
+        dynamodb_service.fail_audit_run(
+            dynamodb_client,
+            table_name,
+            request.run_id,
+            f"Audit timed out after {settings.audit_timeout_seconds} seconds",
+        )
         # Yield a final error event so the client streaming doesn't just cut off silently
-        yield serialise_event(VerdictEvent(verdict={
-            "asset_id": request.asset_id,
-            "run_id": request.run_id,
-            "compliance_status": "INSUFFICIENT_DATA",
-            "confidence": 0.0,
-            "recommendations": ["Audit timed out. Please try again later."],
-            "verdict_reasoning": "The audit pipeline exceeded the maximum allowed execution time.",
-            "errors": [f"Timeout after {settings.audit_timeout_seconds}s"]
-        }))
+        yield serialise_event(
+            VerdictEvent(
+                verdict={
+                    "asset_id": request.asset_id,
+                    "run_id": request.run_id,
+                    "compliance_status": "INSUFFICIENT_DATA",
+                    "confidence": 0.0,
+                    "recommendations": ["Audit timed out. Please try again later."],
+                    "verdict_reasoning": "The audit pipeline exceeded the maximum allowed execution time.",
+                    "errors": [f"Timeout after {settings.audit_timeout_seconds}s"],
+                }
+            )
+        )
 
     except Exception as exc:
         logger.error("audit_stream_error", run_id=request.run_id, error=type(exc).__name__)
@@ -157,7 +173,11 @@ async def run_audit(
 ) -> StreamingResponse | JSONResponse:
     """Start the multi-agent audit pipeline and stream results, with idempotency."""
     log = logger.bind(asset_id=audit_request.asset_id, run_id=audit_request.run_id)
-    log.info("audit_run_requested", images=len(audit_request.s3_image_keys), business_metric="AuditRunRequested")
+    log.info(
+        "audit_run_requested",
+        images=len(audit_request.s3_image_keys),
+        business_metric="AuditRunRequested",
+    )
 
     # ── Idempotency check ──────────────────────────────────────────────────────
     existing = dynamodb_service.get_audit_run(

@@ -46,13 +46,16 @@ class ChatRequest(BaseModel):
         default=None,
         description="Recent audit verdicts — enables questions about past audit findings",
     )
-    doc_type_filter: Literal[
-        "user_manual",
-        "safety_sheet",
-        "compliance_spec",
-        "installation_image",
-        "other",
-    ] | None = Field(
+    doc_type_filter: (
+        Literal[
+            "user_manual",
+            "safety_sheet",
+            "compliance_spec",
+            "installation_image",
+            "other",
+        ]
+        | None
+    ) = Field(
         default=None,
         description=(
             "Optional: restrict RAG retrieval to one doc_type. "

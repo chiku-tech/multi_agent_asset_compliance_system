@@ -15,7 +15,7 @@ class S3Document(BaseModel):
 
     s3_key: str = Field(
         ...,
-        pattern=r'^[a-zA-Z0-9/_\-\.]+$',
+        pattern=r"^[a-zA-Z0-9/_\-\.]+$",
         description="Full S3 object key (path within the bucket)",
     )
     doc_id: str = Field(
@@ -44,7 +44,9 @@ class S3Document(BaseModel):
 class IngestRequest(BaseModel):
     """Request body for POST /api/v1/ingest."""
 
-    asset_id: str = Field(..., min_length=1, description="UUID of the asset in backend client's database")
+    asset_id: str = Field(
+        ..., min_length=1, description="UUID of the asset in backend client's database"
+    )
     event: Literal["create", "update", "add"] = Field(
         ...,
         description=(

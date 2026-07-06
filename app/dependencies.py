@@ -68,6 +68,7 @@ def _get_agent_llm(provider: str, model: str) -> BaseChatModel:
 
     if provider == "openrouter":
         from langchain_openai import ChatOpenAI
+
         client = ChatOpenAI(
             model=model,
             api_key=api_key,
@@ -78,6 +79,7 @@ def _get_agent_llm(provider: str, model: str) -> BaseChatModel:
 
     if provider in ("xai", "grok"):
         from langchain_xai import ChatXAI
+
         client_xai = ChatXAI(
             model=model,
             api_key=api_key,

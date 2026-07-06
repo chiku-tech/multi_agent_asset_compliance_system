@@ -30,9 +30,7 @@ async def test_document_agent_populates_state(
 
     with (
         patch("app.agents.document_agent.get_pinecone_index", return_value=mock_pinecone_index),
-        patch(
-            "app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model
-        ),
+        patch("app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model),
     ):
         result = await document_agent_node(_make_state())
 
@@ -49,9 +47,7 @@ async def test_document_agent_empty_namespace(mock_pinecone_index, mock_embeddin
 
     with (
         patch("app.agents.document_agent.get_pinecone_index", return_value=mock_pinecone_index),
-        patch(
-            "app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model
-        ),
+        patch("app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model),
     ):
         result = await document_agent_node(_make_state())
 
@@ -66,9 +62,7 @@ async def test_document_agent_handles_pinecone_error(mock_pinecone_index, mock_e
 
     with (
         patch("app.agents.document_agent.get_pinecone_index", return_value=mock_pinecone_index),
-        patch(
-            "app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model
-        ),
+        patch("app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model),
     ):
         result = await document_agent_node(_make_state())
 
@@ -83,9 +77,7 @@ async def test_document_agent_handles_embedding_error(mock_pinecone_index, mock_
 
     with (
         patch("app.agents.document_agent.get_pinecone_index", return_value=mock_pinecone_index),
-        patch(
-            "app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model
-        ),
+        patch("app.agents.document_agent.get_embeddings", return_value=mock_embeddings_model),
     ):
         result = await document_agent_node(_make_state())
 

@@ -167,6 +167,15 @@ def mock_dynamodb_table():
         yield client
 
 
+@pytest.fixture(autouse=True)
+def reset_circuit_breakers():
+    """Reset all circuit breakers before each test to prevent state leakage."""
+    from app.utils.circuit_breaker import _breakers
+    _breakers.clear()
+    yield
+    _breakers.clear()
+
+
 @pytest.fixture()
 def mock_chat_model():
     """Provide a mocked async ChatModel returning valid compliance JSON/Text."""

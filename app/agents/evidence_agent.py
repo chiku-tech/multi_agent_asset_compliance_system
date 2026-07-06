@@ -56,15 +56,16 @@ async def evidence_agent_node(state: AuditState) -> dict[str, Any]:
     Consolidate document, image, and remark evidence into a unified bundle.
 
     No external API calls are made — this is a pure data transformation node.
-    The evidence bundle is sorted by a 5-step priority system to ensure critical 
+    The evidence bundle is sorted by a 5-step priority system to ensure critical
     findings are not dropped when capping to stay within token limits.
 
     Returns:
         dict with keys: evidence_bundle
     """
     from app.config import get_settings
+
     settings = get_settings()
-    
+
     evidence: list[dict[str, Any]] = []
 
     # ── Evidence from retrieved document chunks ───────────────────────────────
@@ -115,20 +116,36 @@ async def evidence_agent_node(state: AuditState) -> dict[str, Any]:
                 "finding": f"Auditor observed: {state['auditor_remarks']}",
             }
         )
-        
+
     # Sort by priority (1 is highest, 5 is lowest)
     evidence.sort(key=_get_priority)
-    
+
     # Cap the bundle to prevent context window explosion and massive API payloads
-    capped_evidence = evidence[:settings.evidence_bundle_cap]
+    original_count = len(evidence)
+    capped_evidence = evidence[: settings.evidence_bundle_cap]
+    was_truncated = original_count > settings.evidence_bundle_cap
+
+    if was_truncated:
+        logger.warning(
+            "evidence_agent_truncated",
+            asset_id=state.get("asset_id"),
+            original_count=original_count,
+            capped_count=len(capped_evidence),
+            dropped_count=original_count - len(capped_evidence),
+            cap=settings.evidence_bundle_cap,
+        )
 
     logger.info(
         "evidence_agent_complete",
         asset_id=state.get("asset_id"),
-        total_evidence_count=len(evidence),
+        total_evidence_count=original_count,
         capped_evidence_count=len(capped_evidence),
         document_evidence=sum(1 for e in capped_evidence if e["source_type"] == "document"),
         image_evidence=sum(1 for e in capped_evidence if e["source_type"] == "image"),
         remark_evidence=sum(1 for e in capped_evidence if e["source_type"] == "auditor_remark"),
     )
-    return {"evidence_bundle": capped_evidence}
+    return {
+        "evidence_bundle": capped_evidence,
+        "evidence_truncated": was_truncated,
+        "evidence_original_count": original_count,
+    }

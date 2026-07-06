@@ -20,7 +20,7 @@ When registering a file, you must assign one of the following classification tag
 | File Type | Supported Formats | Processing Method | Preparation Guidelines |
 | :--- | :--- | :--- | :--- |
 | **Documents** | PDF (`.pdf`) | Text extracted page-by-page (using `pypdf`) and split into overlapping character-level chunks. | **Must contain text layers.** If you have scanned physical paper, run **OCR (Optical Character Recognition)** before uploading. Passwords or encryption must be removed. |
-| **Images** | JPEG (`.jpg`, `.jpeg`), PNG (`.png`), WebP (`.webp`) | Transmitted as Base64 to **Claude LLM Vision** to produce a dense text description, which is then embedded as a single vector. | Use high-resolution images. Ensure labels, barcodes, rating plates, or warning stickers are legible, well-lit, and un-obscured. |
+| **Images** | JPEG (`.jpg`, `.jpeg`), PNG (`.png`), WebP (`.webp`) | Transmitted as Base64 to a **Vision LLM** to produce a dense text description, which is then embedded as a single vector. | Use high-resolution images. Ensure labels, barcodes, rating plates, or warning stickers are legible, well-lit, and un-obscured. |
 
 ---
 
@@ -43,6 +43,30 @@ The `POST /api/v1/ingest` API supports multiple document ingestion patterns depe
 4. **GDPR Erasure (Right-to-Erasure):**
    * To completely wipe an asset's records from the system, do not use the ingest endpoint.
    * Instead, call `DELETE /api/v1/admin/assets/{asset_id}`. This purges Pinecone vectors, S3 documents, S3 images, and DynamoDB logs.
+
+### Idempotency of Pinecone Upserts
+
+When the same PDF is ingested twice, the system handles it as follows:
+
+**`create` Event**:
+- If the asset namespace already has vectors, the ingestion is **skipped entirely** (idempotency guard).
+- No duplicate vectors are created, and no additional embedding API calls are made.
+
+**`add` Event**:
+- **Duplicate vectors will be created** if the same `doc_id` is ingested again.
+- This is by design — `add` is meant for appending new documents, not re-ingesting existing ones.
+- **Mitigation**: Use the `update` event instead if you need to re-ingest a document.
+
+**`update` Event**:
+- **Fully idempotent**: Old vectors for the `doc_id` are deleted, then new vectors are written.
+- Re-ingesting the same document with the same `doc_id` will replace the existing vectors with identical ones.
+- No duplicate vectors accumulate in the namespace.
+
+**Best Practices**:
+- Always use stable `doc_id` values from your backend database.
+- Use `update` when re-ingesting the same document to avoid duplicates.
+- For `add` operations, ensure the `doc_id` is unique before appending.
+- Monitor vector counts via the Pinecone console to detect accidental duplicates.
 
 ---
 

@@ -18,16 +18,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 class VerifyRequest(BaseModel):
     """Schema for validating an API key check request."""
+
     api_key: str = Field(min_length=1, description="API Key provided by the user")
 
 
 class VerifyResponse(BaseModel):
     """Schema for verification response."""
+
     valid: bool
 
 
 class AuthConfigResponse(BaseModel):
     """Schema for auth configuration response."""
+
     dev_mode: bool
     default_api_key: str | None = None
 

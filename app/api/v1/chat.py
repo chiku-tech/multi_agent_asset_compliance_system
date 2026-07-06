@@ -69,6 +69,7 @@ def _build_rag_context(chunks: list[dict[str, Any]]) -> str:
 
 from app.schemas.audit import AssetSpec
 
+
 def _build_spec_context(
     asset_spec: AssetSpec, previous_verdicts: list[dict[str, Any]] | None
 ) -> str:

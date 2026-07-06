@@ -26,6 +26,7 @@ from app.config import get_settings
 from app.dependencies import get_image_agent_llm, get_s3_client
 from app.services import s3_service
 from app.utils.circuit_breaker import circuit_breaker
+from app.utils.retry import llm_retry
 
 logger = structlog.get_logger(__name__)
 
@@ -41,6 +42,7 @@ class ImageAnalysisOutput(BaseModel):
     raw_description: str
 
 
+@llm_retry
 async def _process_single_image(
     s3_key: str, s3_client: Any, settings: Any, llm: Any
 ) -> ImageAnalysis | Exception:
@@ -98,7 +100,7 @@ async def image_agent_node(state: AuditState) -> dict[str, Any]:
         dict with keys: image_analyses, errors
     """
     import asyncio
-    
+
     settings = get_settings()
     llm = get_image_agent_llm()
     s3_client = get_s3_client()
@@ -111,10 +113,7 @@ async def image_agent_node(state: AuditState) -> dict[str, Any]:
         return {"image_analyses": [], "errors": []}
 
     # Execute all image processing concurrently
-    tasks = [
-        _process_single_image(s3_key, s3_client, settings, llm)
-        for s3_key in s3_image_keys
-    ]
+    tasks = [_process_single_image(s3_key, s3_client, settings, llm) for s3_key in s3_image_keys]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for s3_key, result in zip(s3_image_keys, results):

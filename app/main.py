@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Validate Pinecone index dimension at cold start
     try:
         from app.dependencies import _get_pinecone_index
+
         index = _get_pinecone_index()
         stats = index.describe_index_stats()
         dimension = getattr(stats, "dimension", None)
@@ -141,7 +142,9 @@ def create_app() -> FastAPI:
 
     # ── Correlation ID middleware ──────────────────────────────────────────────
     @app.middleware("http")
-    async def request_id_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def request_id_middleware(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """
         Extract X-Request-ID header or generate a new UUID.
         Bind it to structlog contextvars so all logs in this request share it.
@@ -149,7 +152,7 @@ def create_app() -> FastAPI:
         structlog.contextvars.clear_contextvars()
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         structlog.contextvars.bind_contextvars(request_id=request_id)
-        
+
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
@@ -165,10 +168,7 @@ def create_app() -> FastAPI:
         This key is shared with the enterprise asset management system.
         """
         # Bypass API key check for non-api routes (e.g. static assets) and public paths
-        if (
-            request.url.path in _PUBLIC_PATHS
-            or not request.url.path.startswith("/api/v1/")
-        ):
+        if request.url.path in _PUBLIC_PATHS or not request.url.path.startswith("/api/v1/"):
             return await call_next(request)
 
         provided_key = request.headers.get("X-API-Key", "")

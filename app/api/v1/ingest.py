@@ -47,7 +47,9 @@ async def _describe_image(
     The description is stored as the vector's text in Pinecone, allowing
     image documents to participate in semantic retrieval.
     """
-    image_b64 = await s3_service.download_as_base64(s3_client, settings.s3_bucket_name, document.s3_key)
+    image_b64 = await s3_service.download_as_base64(
+        s3_client, settings.s3_bucket_name, document.s3_key
+    )
     media_type = s3_service.infer_media_type(document.filename)
     image_url = f"data:{media_type};base64,{image_b64}"
 
@@ -275,7 +277,7 @@ async def upload_and_ingest_documents(
 
         # Read file bytes
         raw_bytes = await upload_file.read()
-        
+
         # Save to S3
         await asyncio.to_thread(
             s3_client.put_object,

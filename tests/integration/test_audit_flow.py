@@ -234,14 +234,14 @@ async def test_audit_run_invalid_asset_spec():
     app = create_app()
     payload = _SAMPLE_AUDIT_PAYLOAD.copy()
     payload["asset_spec"] = {"invalid": "missing name and category"}
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
             "/api/v1/audit/run",
             json=payload,
             headers=_HEADERS,
         )
-    
+
     assert response.status_code == 422
     body = response.json()
     assert "asset_spec" in str(body["detail"])
@@ -253,14 +253,14 @@ async def test_audit_run_oversized_auditor_remarks():
     app = create_app()
     payload = _SAMPLE_AUDIT_PAYLOAD.copy()
     payload["auditor_remarks"] = "A" * 5001  # Max is 5000
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
             "/api/v1/audit/run",
             json=payload,
             headers=_HEADERS,
         )
-    
+
     assert response.status_code == 422
     body = response.json()
     assert "auditor_remarks" in str(body["detail"])

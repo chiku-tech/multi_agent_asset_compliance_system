@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from app.agents.state import AuditState, get_asset_spec_dict
 from app.dependencies import get_verdict_agent_llm
 from app.utils.circuit_breaker import circuit_breaker
+from app.utils.retry import llm_retry
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +33,18 @@ class VerdictOutput(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     recommendations: list[str]
     verdict_reasoning: str
+    change_summary: str | None = Field(
+        default=None,
+        description="Summary of changes from previous verdict if this is a re-audit",
+    )
+    rules_newly_triggered: list[str] | None = Field(
+        default=None,
+        description="Rules that were NOT triggered in the previous verdict but are now triggered",
+    )
+    rules_resolved: list[str] | None = Field(
+        default=None,
+        description="Rules that WERE triggered in the previous verdict but are now resolved",
+    )
 
 
 _VERDICT_SYSTEM_PROMPT = (
@@ -51,10 +64,25 @@ TRIGGERED RULES:
 EVIDENCE BUNDLE:
 {evidence_bundle}
 
-PREVIOUS VERDICTS (for trend-aware reasoning):
+PREVIOUS VERDICTS (for trend-aware reasoning and re-audit comparison):
 {previous_verdicts}
 
-Use INSUFFICIENT_DATA if there is not enough evidence to reach a reliable conclusion."""
+INSTRUCTIONS:
+1. Issue a compliance status (COMPLIANT, NON_COMPLIANT, NEEDS_REVIEW, or INSUFFICIENT_DATA).
+2. Provide confidence level and reasoning based on the evidence.
+3. If previous verdicts exist, compare the current findings against them:
+   - Identify rules that are newly triggered (not in previous verdict)
+   - Identify rules that have been resolved (were triggered before, now compliant)
+   - Provide a change summary describing the overall trend (improving, stable, declining)
+4. Use INSUFFICIENT_DATA if there is not enough evidence to reach a reliable conclusion."""
+
+
+@llm_retry
+async def _call_verdict_llm(llm: Any, messages: list) -> VerdictOutput:
+    """Helper to call verdict agent LLM with circuit breaker."""
+    structured_llm = llm.with_structured_output(VerdictOutput)
+    cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
+    return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
 
 
 async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
@@ -114,14 +142,12 @@ async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
             previous_verdicts=json.dumps(state.get("previous_verdicts") or [], indent=2),
         )
 
-        structured_llm = llm.with_structured_output(VerdictOutput)
         messages = [
             SystemMessage(content=_VERDICT_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ]
 
-        cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
-        parsed_obj: VerdictOutput = await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+        parsed_obj: VerdictOutput = await _call_verdict_llm(llm, messages)
         parsed = parsed_obj.model_dump()
 
         verdict = {
@@ -136,6 +162,11 @@ async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
             "documents_consulted": state.get("documents_consulted", []),
             "generated_at": generated_at,
             "errors": cumulative_errors if cumulative_errors else None,
+            # Re-audit diff fields
+            "change_summary": parsed.get("change_summary"),
+            "rules_newly_triggered": parsed.get("rules_newly_triggered"),
+            "rules_resolved": parsed.get("rules_resolved"),
+            "is_re_audit": bool(state.get("previous_verdicts")),
         }
 
         logger.info(

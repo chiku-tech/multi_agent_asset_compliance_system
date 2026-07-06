@@ -72,6 +72,8 @@ class AuditState(TypedDict, total=False):
 
     # ── evidence_agent output ─────────────────────────────────────────────────
     evidence_bundle: list[dict[str, Any]]
+    evidence_truncated: bool  # True if evidence was truncated due to cap
+    evidence_original_count: int  # Original count before truncation
 
     # ── verdict_agent output ──────────────────────────────────────────────────
     verdict: dict[str, Any] | None
@@ -115,4 +117,3 @@ def get_asset_spec_dict(state: Any) -> dict[str, Any]:
     if hasattr(spec, "model_dump"):
         return _escape_dict(cast(dict[str, Any], spec.model_dump()))
     return {}
-

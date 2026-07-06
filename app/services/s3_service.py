@@ -123,8 +123,7 @@ def _delete_asset_documents_sync(s3_client: Any, bucket: str, asset_id: str) -> 
                 objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
                 if objects:
                     response = s3_client.delete_objects(
-                        Bucket=bucket,
-                        Delete={"Objects": objects, "Quiet": True}
+                        Bucket=bucket, Delete={"Objects": objects, "Quiet": True}
                     )
                     deleted_count += len(objects)
     except Exception as e:
@@ -133,8 +132,10 @@ def _delete_asset_documents_sync(s3_client: Any, bucket: str, asset_id: str) -> 
             logger.debug("s3_bucket_not_found_for_erasure", bucket=bucket)
             return 0
         raise
-                
-    logger.debug("s3_asset_documents_deleted", bucket=bucket, asset_id=asset_id, count=deleted_count)
+
+    logger.debug(
+        "s3_asset_documents_deleted", bucket=bucket, asset_id=asset_id, count=deleted_count
+    )
     return deleted_count
 
 

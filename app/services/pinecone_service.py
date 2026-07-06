@@ -163,7 +163,7 @@ def doc_id_exists(index: Index, asset_id: str, doc_id: str) -> bool:
     """Return True if vectors with this doc_id already exist in the namespace."""
     namespace = _namespace(asset_id)
     prefix = f"{asset_id}_{doc_id}_"
-    
+
     try:
         generator = index.list(prefix=prefix, namespace=namespace)
         for ids_batch in generator:
@@ -171,7 +171,7 @@ def doc_id_exists(index: Index, asset_id: str, doc_id: str) -> bool:
                 return True
     except Exception as e:
         logger.warning("doc_id_exists_list_error", error=str(e))
-        
+
     return False
 
 

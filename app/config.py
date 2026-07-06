@@ -31,7 +31,9 @@ class Settings(BaseSettings):
 
     # ── Local Offline Mode ────────────────────────────────────────────────────
     local_offline: bool = Field(default=False, description="Enable local offline development mode")
-    serve_frontend: bool = Field(default=True, description="Serve frontend static assets from FastAPI")
+    serve_frontend: bool = Field(
+        default=True, description="Serve frontend static assets from FastAPI"
+    )
 
     # ── AWS ───────────────────────────────────────────────────────────────────
     aws_region: str = Field(default="us-east-1", description="AWS region for all SDK calls")
@@ -142,10 +144,16 @@ class Settings(BaseSettings):
         default=64, ge=0, le=512, description="Overlap between consecutive chunks in characters"
     )
     evidence_bundle_cap: int = Field(
-        default=20, ge=1, le=100, description="Max number of evidence items passed to verdict LLM and returned in API"
+        default=20,
+        ge=1,
+        le=100,
+        description="Max number of evidence items passed to verdict LLM and returned in API",
     )
     audit_timeout_seconds: int = Field(
-        default=120, ge=10, le=800, description="Max time allowed for the audit graph execution before timing out"
+        default=120,
+        ge=10,
+        le=800,
+        description="Max time allowed for the audit graph execution before timing out",
     )
 
     # ── DynamoDB ──────────────────────────────────────────────────────────────

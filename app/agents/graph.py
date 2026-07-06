@@ -1,11 +1,13 @@
 """
 LangGraph StateGraph assembly for the compliance audit pipeline.
 
-Graph topology (all sequential, no conditional branches):
+Graph topology (parallel branches for independent agents):
 
-  document_agent → image_agent → rule_agent → evidence_agent → verdict_agent → END
+  start → document_agent ─┐
+       └→ image_agent    ──┼→ rule_agent → evidence_agent → verdict_agent → END
 
 Design decisions:
+  - Document Agent and Image Agent run in parallel since they are independent.
   - All five agents run on every audit regardless of outcome.
   - Non-fatal errors are accumulated in state["errors"] rather than raising,
     so the graph always completes and returns at minimum an INSUFFICIENT_DATA verdict.
