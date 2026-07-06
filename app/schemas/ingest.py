@@ -5,9 +5,9 @@ Defines the request and response models for POST /api/v1/ingest.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class S3Document(BaseModel):
@@ -44,8 +44,8 @@ class S3Document(BaseModel):
 class IngestRequest(BaseModel):
     """Request body for POST /api/v1/ingest."""
 
-    asset_id: str = Field(
-        ..., min_length=1, description="UUID of the asset in backend client's database"
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")] = Field(
+        ..., description="UUID of the asset in backend client's database"
     )
     event: Literal["create", "update", "add"] = Field(
         ...,
@@ -66,7 +66,7 @@ class IngestRequest(BaseModel):
 class IngestResponse(BaseModel):
     """Response body for POST /api/v1/ingest."""
 
-    asset_id: str
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")]
     event: str
     documents_processed: int
     vectors_upserted: int

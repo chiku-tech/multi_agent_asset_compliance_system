@@ -124,10 +124,22 @@ def retry_with_backoff(
     return decorator
 
 
-# Common retry decorator for LLM calls
+# Transient exceptions that are safe to retry
+_TRANSIENT_EXCEPTIONS = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+    ConnectionResetError,
+    ConnectionRefusedError,
+    ConnectionAbortedError,
+)
+
+
+# Common retry decorator for LLM calls — only retries transient network errors
 llm_retry = retry_with_backoff(
     max_retries=3,
     base_delay=1.0,
     max_delay=30.0,
     exponential_base=2.0,
+    retryable_exceptions=_TRANSIENT_EXCEPTIONS,
 )

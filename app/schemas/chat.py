@@ -4,9 +4,9 @@ Pydantic schemas for the auditor chat endpoint.
 Defines the request and response models for POST /api/v1/chat/query.
 """
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.schemas.audit import AssetSpec
 
@@ -31,8 +31,9 @@ class SourceCitation(BaseModel):
 class ChatRequest(BaseModel):
     """Request body for POST /api/v1/chat/query."""
 
-    asset_id: str = Field(..., min_length=1)
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")]
     asset_spec: AssetSpec = Field(..., description="Asset metadata from backend client")
+
     question: str = Field(..., min_length=1, max_length=2000)
     conversation_history: list[Message] = Field(
         default_factory=list,
@@ -68,7 +69,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """Response body for POST /api/v1/chat/query."""
 
-    asset_id: str
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")]
     answer: str
     sources: list[SourceCitation] = Field(
         default_factory=list,

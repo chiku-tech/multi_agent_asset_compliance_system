@@ -117,7 +117,12 @@ multi_agent_asset_compliance_system/
 │   ├── css/                 # Stylesheets
 │   ├── js/                  # Client-side JavaScript
 │   └── pages/               # Additional views
-├── template.yaml            # AWS SAM template
+├── deploy/
+│   ├── aws-sam/
+│   │   └── template.yaml    # AWS SAM template
+│   └── docker-ec2/
+│       ├── Dockerfile
+│       └── docker-compose.yml
 ├── samconfig.toml
 ├── requirements.txt
 ├── requirements-dev.txt

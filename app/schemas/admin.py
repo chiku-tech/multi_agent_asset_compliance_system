@@ -6,13 +6,15 @@ Defines request and response models for:
   DELETE /api/v1/admin/assets/{asset_id}
 """
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class AssetStatsResponse(BaseModel):
     """Operational statistics for a single asset's data across all stores."""
 
-    asset_id: str = Field(..., description="Asset UUID")
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")] = Field(..., description="Asset UUID")
 
     # Pinecone namespace stats
     pinecone_namespace: str = Field(..., description="Pinecone namespace key")
@@ -37,7 +39,7 @@ class AssetStatsResponse(BaseModel):
 class AssetDeleteResponse(BaseModel):
     """Result of a GDPR erasure request for a single asset."""
 
-    asset_id: str = Field(..., description="Asset UUID that was erased")
+    asset_id: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")] = Field(..., description="Asset UUID that was erased")
     pinecone_vectors_deleted: int = Field(
         ...,
         ge=0,

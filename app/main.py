@@ -140,6 +140,28 @@ def create_app() -> FastAPI:
         asset_compliance_exception_handler,  # type: ignore[arg-type]
     )
 
+    # ── Content Security Policy middleware ──────────────────────────────────────
+    @app.middleware("http")
+    async def security_headers_middleware(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        """Add security headers including CSP to all responses."""
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
     # ── Correlation ID middleware ──────────────────────────────────────────────
     @app.middleware("http")
     async def request_id_middleware(

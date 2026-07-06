@@ -111,7 +111,7 @@ async def _stream_audit(
                 verdict=final_verdict["compliance_status"],
                 business_metric="ComplianceVerdictIssued",
             )
-            dynamodb_service.complete_audit_run(
+            await dynamodb_service.complete_audit_run(
                 dynamodb_client, table_name, request.run_id, final_verdict
             )
 
@@ -119,7 +119,7 @@ async def _stream_audit(
         logger.error(
             "audit_stream_timeout", run_id=request.run_id, timeout=settings.audit_timeout_seconds
         )
-        dynamodb_service.fail_audit_run(
+        await dynamodb_service.fail_audit_run(
             dynamodb_client,
             table_name,
             request.run_id,
@@ -142,7 +142,7 @@ async def _stream_audit(
 
     except Exception as exc:
         logger.error("audit_stream_error", run_id=request.run_id, error=type(exc).__name__)
-        dynamodb_service.fail_audit_run(dynamodb_client, table_name, request.run_id, str(exc))
+        await dynamodb_service.fail_audit_run(dynamodb_client, table_name, request.run_id, str(exc))
         raise
 
 
@@ -180,7 +180,7 @@ async def run_audit(
     )
 
     # ── Idempotency check ──────────────────────────────────────────────────────
-    existing = dynamodb_service.get_audit_run(
+    existing = await dynamodb_service.get_audit_run(
         dynamodb_client, settings.dynamodb_audit_table, audit_request.run_id
     )
 
@@ -216,7 +216,7 @@ async def run_audit(
 
     # ── Mark run as IN_PROGRESS before executing the graph ────────────────────
     try:
-        dynamodb_service.put_audit_run(
+        await dynamodb_service.put_audit_run(
             dynamodb_client,
             settings.dynamodb_audit_table,
             audit_request.run_id,

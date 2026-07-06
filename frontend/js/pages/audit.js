@@ -15,8 +15,9 @@
       this.citationsContainer = document.getElementById('citations-container');
       this.noCitationsMsg = document.getElementById('no-citations-msg');
 
+      this._boundHandleSubmit = this.handleSubmit.bind(this);
       if (this.form) {
-        this.form.addEventListener('submit', this.handleSubmit.bind(this));
+        this.form.addEventListener('submit', this._boundHandleSubmit);
       }
       
       // Clean dynamic verdict banners if they exist from previous runs
@@ -218,7 +219,9 @@
 
       // Insert verdict banner in UI
       this.removeVerdictBanners();
-      const flexCol = document.querySelector('.chat-layout').parentNode;
+      const chatLayoutEl = document.querySelector('.chat-layout');
+      if (!chatLayoutEl) return;
+      const flexCol = chatLayoutEl.parentNode;
       
       const banner = document.createElement('div');
       const isCompliant = verdict.compliance_status === 'COMPLIANT';
@@ -374,8 +377,8 @@
 
     destroy() {
       console.log('Audit controller destroyed');
-      if (this.form) {
-        this.form.removeEventListener('submit', this.handleSubmit.bind(this));
+      if (this.form && this._boundHandleSubmit) {
+        this.form.removeEventListener('submit', this._boundHandleSubmit);
       }
     }
   };

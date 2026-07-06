@@ -167,17 +167,17 @@ jobs:
           aws-region: us-east-1
 
       - name: SAM Build
-        run: sam build
+        run: sam build --template-file deploy/aws-sam/template.yaml
 
       - name: SAM Deploy (Dry Run)
         # Using --no-execute-changeset simulates a deployment without applying it
         run: >
           sam deploy 
+          --template-file deploy/aws-sam/template.yaml
           --stack-name asset-compliance-staging 
           --capabilities CAPABILITY_IAM 
           --no-execute-changeset 
           --resolve-s3
-          || echo "Dry run complete or dummy credentials prevented full S3 upload"
 
   smoke-test:
     name: Local Smoke Test

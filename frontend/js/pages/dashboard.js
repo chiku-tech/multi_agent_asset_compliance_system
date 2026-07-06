@@ -15,15 +15,18 @@
       this.statusLabel = document.getElementById('telemetry-status');
       this.activityTableBody = document.getElementById('activity-log-body');
       
-      // Bind event listeners
+      this._boundHandleClearLogs = this.handleClearLogs.bind(this);
+      this._boundShowAuditOverview = this.showAuditOverview.bind(this);
+      this._boundHandleActivityLogEvent = this.handleActivityLogEvent.bind(this);
+
       const clearLogsBtn = document.getElementById('clear-logs-btn');
       if (clearLogsBtn) {
-        clearLogsBtn.addEventListener('click', this.handleClearLogs.bind(this));
+        clearLogsBtn.addEventListener('click', this._boundHandleClearLogs);
       }
 
       const triggerBtn = document.getElementById('trigger-audit-btn');
       if (triggerBtn) {
-        triggerBtn.addEventListener('click', this.showAuditOverview.bind(this));
+        triggerBtn.addEventListener('click', this._boundShowAuditOverview);
       }
 
       // Initial execution and schedule polling loop
@@ -32,8 +35,7 @@
 
       this.renderActivityLogs();
 
-      // Listen for local config or activity log changes
-      window.addEventListener('activityLogChanged', this.handleActivityLogEvent.bind(this));
+      window.addEventListener('activityLogChanged', this._boundHandleActivityLogEvent);
     },
 
     handleActivityLogEvent(e) {
@@ -202,7 +204,9 @@
         clearInterval(this.healthInterval);
         this.healthInterval = null;
       }
-      window.removeEventListener('activityLogChanged', this.handleActivityLogEvent.bind(this));
+      if (this._boundHandleActivityLogEvent) {
+        window.removeEventListener('activityLogChanged', this._boundHandleActivityLogEvent);
+      }
     }
   };
 })();
