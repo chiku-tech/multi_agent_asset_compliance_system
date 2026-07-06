@@ -81,7 +81,7 @@ INSTRUCTIONS:
 async def _call_verdict_llm(llm: Any, messages: list) -> VerdictOutput:
     """Helper to call verdict agent LLM with circuit breaker."""
     structured_llm = llm.with_structured_output(VerdictOutput)
-    cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
+    cb = circuit_breaker("llm_verdict", failure_threshold=3, recovery_timeout=60)
     return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
 
 

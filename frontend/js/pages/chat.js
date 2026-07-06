@@ -1,5 +1,4 @@
 // js/pages/chat.js
-import { Config } from '../config.js';
 
 // DOM Elements
 const apiStatusBadge = document.getElementById('api-status-badge');
@@ -51,13 +50,13 @@ let lastCitations = [];
 // Initialize Page
 async function init() {
   // 1. Setup dev mode / default keys
-  await Config.fetchAndSetupDevMode();
+  await window.Config.fetchAndSetupDevMode();
 
   // 2. Load API Key status
   updateApiKeyStatus();
 
   // 3. Load input values from Config
-  const assetId = Config.getCurrentAssetId();
+  const assetId = window.Config.getCurrentAssetId();
   assetIdInput.value = assetId;
   activeAssetBadge.textContent = assetId;
 
@@ -70,7 +69,7 @@ async function init() {
 
 // Update API status display
 function updateApiKeyStatus() {
-  const key = Config.getApiKey();
+  const key = window.Config.getApiKey();
   if (key) {
     apiStatusBadge.textContent = "Configured";
     apiStatusBadge.className = "badge badge-success";
@@ -82,7 +81,7 @@ function updateApiKeyStatus() {
 
 // Load history from cache for an asset
 function loadHistoryForAsset(assetId) {
-  chatHistory = Config.getChatHistory(assetId);
+  chatHistory = window.Config.getChatHistory(assetId);
   renderMessages();
   
   // Clear citations pane on reload unless there's a last citation in the history
@@ -276,7 +275,7 @@ function setupEventListeners() {
   
   // API Key Modal open / close
   configureApiKeyBtn.addEventListener('click', () => {
-    apiKeyInput.value = Config.getApiKey();
+    apiKeyInput.value = window.Config.getApiKey();
     apiKeyModal.classList.add('open');
   });
   
@@ -301,7 +300,7 @@ function setupEventListeners() {
     try {
       const res = await window.ApiClient.verifyApiKey(key);
       if (res.valid) {
-        Config.setApiKey(key);
+        window.Config.setApiKey(key);
         updateApiKeyStatus();
         window.ApiClient.showToast("API Key verified and updated successfully!", "success");
         closeApiKeyModal();
@@ -318,9 +317,9 @@ function setupEventListeners() {
   
   // Clear chat cache
   clearHistoryBtn.addEventListener('click', () => {
-    const assetId = Config.getCurrentAssetId();
+    const assetId = window.Config.getCurrentAssetId();
     if (confirm("Are you sure you want to clear the conversation history for this asset?")) {
-      Config.clearChatHistory(assetId);
+      window.Config.clearChatHistory(assetId);
       loadHistoryForAsset(assetId);
       window.ApiClient.showToast("Local chat history cleared.", "info");
     }
@@ -330,7 +329,7 @@ function setupEventListeners() {
   assetIdInput.addEventListener('change', () => {
     const val = assetIdInput.value.trim();
     if (val) {
-      Config.setCurrentAssetId(val);
+      window.Config.setCurrentAssetId(val);
       activeAssetBadge.textContent = val;
       loadHistoryForAsset(val);
     }
@@ -338,7 +337,7 @@ function setupEventListeners() {
 
   // Edit Spec Modal
   editSpecBtn.addEventListener('click', () => {
-    const spec = Config.getCurrentAssetSpec();
+    const spec = window.Config.getCurrentAssetSpec();
     specJsonTextarea.value = JSON.stringify(spec, null, 2);
     specJsonError.style.display = 'none';
     assetSpecModal.classList.add('open');
@@ -356,7 +355,7 @@ function setupEventListeners() {
       if (!parsed.name || !parsed.category) {
         throw new Error("Asset Spec must contain at least 'name' and 'category' properties.");
       }
-      Config.setCurrentAssetSpec(parsed);
+      window.Config.setCurrentAssetSpec(parsed);
       closeSpecModal();
       window.ApiClient.showToast("Asset specification updated.", "success");
     } catch (e) {
@@ -367,7 +366,7 @@ function setupEventListeners() {
 
   // Edit Verdicts Modal
   editVerdictsBtn.addEventListener('click', () => {
-    const verdicts = Config.getCurrentPreviousVerdicts();
+    const verdicts = window.Config.getCurrentPreviousVerdicts();
     verdictsJsonTextarea.value = JSON.stringify(verdicts, null, 2);
     verdictsJsonError.style.display = 'none';
     verdictsModal.classList.add('open');
@@ -385,7 +384,7 @@ function setupEventListeners() {
       if (!Array.isArray(parsed)) {
         throw new Error("Previous verdicts must be a JSON array.");
       }
-      Config.setCurrentPreviousVerdicts(parsed);
+      window.Config.setCurrentPreviousVerdicts(parsed);
       closeVerdictsModal();
       window.ApiClient.showToast("Previous audit verdicts updated.", "success");
     } catch (e) {
@@ -428,11 +427,11 @@ function setupEventListeners() {
 // Submit Question flow
 async function submitQuestion() {
   const question = chatQuestionInput.value.trim();
-  const assetId = Config.getCurrentAssetId();
-  const spec = Config.getCurrentAssetSpec();
-  const verdicts = Config.getCurrentPreviousVerdicts();
+  const assetId = window.Config.getCurrentAssetId();
+  const spec = window.Config.getCurrentAssetSpec();
+  const verdicts = window.Config.getCurrentPreviousVerdicts();
   const docFilter = docTypeFilter.value || null;
-  const apiKey = Config.getApiKey();
+  const apiKey = window.Config.getApiKey();
 
   if (!apiKey) {
     window.ApiClient.showToast("API Key is missing. Please click 'Configure API Key' first.", "warning");
@@ -493,7 +492,7 @@ async function submitQuestion() {
     chatHistory.push(assistantMsg);
     
     // 4. Update localStorage cache
-    Config.saveChatHistory(assetId, chatHistory);
+    window.Config.saveChatHistory(assetId, chatHistory);
     
     // 5. Re-render
     renderMessages();

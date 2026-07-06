@@ -1,6 +1,16 @@
 /* Toast Component - Asset Compliance AI */
 
 (function () {
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   class ToastManager {
     constructor() {
       this.container = null;
@@ -72,7 +82,7 @@
           background-color: var(--${type === 'error' ? 'rose-error' : type === 'success' ? 'emerald-success' : type === 'warning' ? 'amber-warning' : 'cobalt-primary'});
           color: #0b0e14;
         ">${icon}</span>
-        <div style="flex-grow: 1; font-family: var(--font-body); font-size: var(--fs-body-md); color: var(--on-surface); line-height: 1.25;">${message}</div>
+        <div class="toast-message" style="flex-grow: 1; font-family: var(--font-body); font-size: var(--fs-body-md); color: var(--on-surface); line-height: 1.25;"></div>
         <button style="
           background: none;
           border: none;
@@ -84,6 +94,10 @@
           align-self: center;
         ">&times;</button>
       `;
+
+      // Set message safely using textContent
+      const msgDiv = toast.querySelector('.toast-message');
+      msgDiv.textContent = escapeHtml(message);
 
       // Set dismiss action
       const closeBtn = toast.querySelector('button');

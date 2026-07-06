@@ -182,14 +182,21 @@ class Settings(BaseSettings):
     )
 
     # ── Authentication ────────────────────────────────────────────────────────
-    api_secret_key: SecretStr = Field(
-        default=SecretStr("local-api-secret-key-12345"),
+    api_secret_key: SecretStr | None = Field(
+        default=None,
         description=(
             "Shared API secret key. Must match the API_SECRET_KEY configured in the "
             "enterprise asset management system. All inbound requests must include the "
-            "X-API-Key header with this value."
+            "X-API-Key header with this value.  Required in staging and production."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_api_key(self) -> "Settings":
+        """Require API_SECRET_KEY in staging and production environments."""
+        if self.app_env in ("staging", "production") and self.api_secret_key is None:
+            raise ValueError("API_SECRET_KEY must be set in staging and production environments.")
+        return self
 
     @model_validator(mode="after")
     def validate_cors(self) -> "Settings":

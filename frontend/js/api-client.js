@@ -2,7 +2,14 @@
 
 class ApiClient {
   constructor() {
-    this.baseUrl = window.location.origin;
+    this.baseUrl = (window.Config && window.Config.getApiBaseUrl()) || window.location.origin;
+  }
+
+  updateBaseUrl(url) {
+    this.baseUrl = url;
+    if (window.Config) {
+      window.Config.setApiBaseUrl(url);
+    }
   }
 
   getHeaders() {

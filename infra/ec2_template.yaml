@@ -81,8 +81,8 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub "arn:aws:aws:s3:::${AssetDocsBucketName}"
-                  - !Sub "arn:aws:aws:s3:::${AssetDocsBucketName}/*"
+                  - !Sub "arn:aws:s3:::${AssetDocsBucketName}"
+                  - !Sub "arn:aws:s3:::${AssetDocsBucketName}/*"
         - PolicyName: DynamoDBCrudAccess
           PolicyDocument:
             Version: "2012-10-17"
@@ -96,8 +96,8 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:Scan
                 Resource:
-                  - !Sub "arn:aws:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AuditRunsTableName}"
-                  - !Sub "arn:aws:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AuditRunsTableName}/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AuditRunsTableName}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AuditRunsTableName}/index/*"
         - PolicyName: SSMParameterReadAccess
           PolicyDocument:
             Version: "2012-10-17"
@@ -108,7 +108,7 @@ Resources:
                   - ssm:GetParameters
                   - ssm:GetParametersByPath
                 Resource:
-                  - !Sub "arn:aws:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/asset-compliance/${AppEnv}/*"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/asset-compliance/${AppEnv}/*"
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile

@@ -255,4 +255,3 @@ class ProgressTracker {
 }
 
 window.ProgressTracker = ProgressTracker;
-export default ProgressTracker;

@@ -1,5 +1,15 @@
 // js/components/verdict-card.js
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 class VerdictCard {
   constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
@@ -245,7 +255,7 @@ class VerdictCard {
           <div class="card">
             <h3 class="headline-sm card-title">Verdict Explanation</h3>
             <p class="body-md" style="color: var(--on-surface-variant); white-space: pre-line; line-height: 1.6;">
-              ${verdict_reasoning || "No reasoning text generated."}
+              ${escapeHtml(verdict_reasoning) || "No reasoning text generated."}
             </p>
           </div>
 
@@ -254,7 +264,7 @@ class VerdictCard {
             <h3 class="headline-sm card-title">Actionable Recommendations</h3>
             ${recommendations.length > 0 ? `
               <ul class="recommendations-list">
-                ${recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                ${recommendations.map(rec => `<li>${escapeHtml(rec)}</li>`).join('')}
               </ul>
             ` : `
               <p class="body-md" style="color: var(--slate-500); font-style: italic;">No recommendations generated.</p>
@@ -302,13 +312,13 @@ class VerdictCard {
                   const refs = rule.evidence_refs || [];
                   return `
                     <tr>
-                      <td class="code-sm" style="color: var(--on-surface); font-weight: 700;">${rule.rule_id}</td>
+                      <td class="code-sm" style="color: var(--on-surface); font-weight: 700;">${escapeHtml(rule.rule_id)}</td>
                       <td>
-                        <div style="font-weight: 600; margin-bottom: 4px; color: var(--on-surface);">${rule.rule_description}</div>
-                        ${rule.violation_reason ? `<div style="font-size: 12px; color: var(--rose-error); margin-top: 4px; font-style: italic;">Violation: ${rule.violation_reason}</div>` : ''}
+                        <div style="font-weight: 600; margin-bottom: 4px; color: var(--on-surface);">${escapeHtml(rule.rule_description)}</div>
+                        ${rule.violation_reason ? `<div style="font-size: 12px; color: var(--rose-error); margin-top: 4px; font-style: italic;">Violation: ${escapeHtml(rule.violation_reason)}</div>` : ''}
                       </td>
                       <td>
-                        <span class="severity-badge ${severityClass}">${rule.severity}</span>
+                        <span class="severity-badge ${severityClass}">${escapeHtml(rule.severity)}</span>
                       </td>
                       <td>
                         ${refs.length > 0 ? 
@@ -343,4 +353,3 @@ class VerdictCard {
 }
 
 window.VerdictCard = VerdictCard;
-export default VerdictCard;

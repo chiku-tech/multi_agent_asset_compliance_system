@@ -65,7 +65,7 @@ async def _process_single_image(
         ]
 
         structured_llm = llm.with_structured_output(ImageAnalysisOutput)
-        cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
+        cb = circuit_breaker("llm_image", failure_threshold=3, recovery_timeout=60)
         parsed_obj: ImageAnalysisOutput = await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
 
         analysis: ImageAnalysis = {
@@ -116,7 +116,7 @@ async def image_agent_node(state: AuditState) -> dict[str, Any]:
     tasks = [_process_single_image(s3_key, s3_client, settings, llm) for s3_key in s3_image_keys]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for s3_key, result in zip(s3_image_keys, results):
+    for s3_key, result in zip(s3_image_keys, results, strict=False):
         if isinstance(result, Exception):
             # The exception is already logged inside _process_single_image
             new_errors.append(f"image_agent: {s3_key}: {result}")

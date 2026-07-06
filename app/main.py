@@ -27,9 +27,9 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response, status
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -172,7 +172,19 @@ def create_app() -> FastAPI:
             return await call_next(request)
 
         provided_key = request.headers.get("X-API-Key", "")
-        expected_key = settings.api_secret_key.get_secret_value()
+        expected_key = settings.api_secret_key.get_secret_value() if settings.api_secret_key else ""
+
+        if not expected_key:
+            logger.warning("api_key_not_configured", path=request.url.path)
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "error": {
+                        "code": "NOT_CONFIGURED",
+                        "message": "API secret key is not configured on the server.",
+                    }
+                },
+            )
 
         # Both strings must be encoded for compare_digest
         if not hmac.compare_digest(

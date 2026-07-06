@@ -47,9 +47,7 @@ async def test_rule_agent_happy_path(mock_chat_model):
             rule_id="valve-pressure-marking",
             rule_description="Valve pressure must be marked on housing.",
             severity="major",
-            source_doc="pump_manual.pdf",
-            source_page=5,
-            violation_reason="Pressure label is missing from valve housing.",
+            evidence_refs=[0],
         )
     ]
     mock_structured = AsyncMock()

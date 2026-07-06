@@ -1,5 +1,15 @@
 // js/components/evidence-panel.js
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 class EvidencePanel {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -241,7 +251,7 @@ class EvidencePanel {
             let detailsHtml = '';
 
             if (item.source_type === 'document') {
-              title = `${item.filename || 'Document'} ${item.page ? `(Page ${item.page})` : ''}`;
+              title = `${escapeHtml(item.filename) || 'Document'} ${item.page ? `(Page ${item.page})` : ''}`;
               typeBadge = `<span class="evidence-type-badge type-document">Document</span>`;
               
               const scorePct = item.relevance_score ? Math.round(item.relevance_score * 100) : 0;
@@ -259,26 +269,26 @@ class EvidencePanel {
                 ` : ''}
                 
                 ${item.excerpt ? `
-                  <div class="citation-box">${item.excerpt}</div>
+                  <div class="citation-box">${escapeHtml(item.excerpt)}</div>
                 ` : ''}
 
                 <div class="evidence-meta-row">
                   <div class="evidence-meta-item">
                     <span class="evidence-meta-label">Document ID</span>
-                    <span class="evidence-meta-value code-sm">${item.doc_id || 'N/A'}</span>
+                    <span class="evidence-meta-value code-sm">${escapeHtml(item.doc_id) || 'N/A'}</span>
                   </div>
                   <div class="evidence-meta-item">
                     <span class="evidence-meta-label">Document Type</span>
-                    <span class="evidence-meta-value code-sm">${item.doc_type || 'N/A'}</span>
+                    <span class="evidence-meta-value code-sm">${escapeHtml(item.doc_type) || 'N/A'}</span>
                   </div>
                   <div class="evidence-meta-item">
                     <span class="evidence-meta-label">Finding Description</span>
-                    <span class="evidence-meta-value">${item.finding || 'N/A'}</span>
+                    <span class="evidence-meta-value">${escapeHtml(item.finding) || 'N/A'}</span>
                   </div>
                 </div>
               `;
             } else if (item.source_type === 'image') {
-              title = `Audit Photograph: ${item.s3_key ? item.s3_key.split('/').pop() : 'Unspecified Key'}`;
+              title = `Audit Photograph: ${item.s3_key ? escapeHtml(item.s3_key.split('/').pop()) : 'Unspecified Key'}`;
               typeBadge = `<span class="evidence-type-badge type-image">Image Agent</span>`;
 
               let condBadgeClass = 'badge-info';
@@ -287,26 +297,26 @@ class EvidencePanel {
               else if (item.condition === 'good') condBadgeClass = 'badge-success';
 
               detailsHtml = `
-                <div class="evidence-meta-row" style="margin-bottom: 12px;">
+                <div class="evidence-meta-row">
                   <div class="evidence-meta-item">
                     <span class="evidence-meta-label">S3 Bucket Path</span>
-                    <span class="evidence-meta-value code-sm">${item.s3_key || 'N/A'}</span>
+                    <span class="evidence-meta-value code-sm">${escapeHtml(item.s3_key) || 'N/A'}</span>
                   </div>
                   <div class="evidence-meta-item">
                     <span class="evidence-meta-label">Visual Condition</span>
                     <div>
-                      <span class="badge ${condBadgeClass}">${item.condition || 'Unknown'}</span>
+                      <span class="badge ${condBadgeClass}">${escapeHtml(item.condition) || 'Unknown'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div class="citation-box" style="font-family: var(--font-body); font-size: 13px;">${item.image_finding || item.finding}</div>
+                <div class="citation-box" style="font-family: var(--font-body); font-size: 13px;">${escapeHtml(item.image_finding || item.finding)}</div>
               `;
             } else if (item.source_type === 'auditor_remark') {
               title = 'Auditor Site Remark';
               typeBadge = `<span class="evidence-type-badge type-remark">Remark</span>`;
               detailsHtml = `
-                <div class="citation-box" style="font-family: var(--font-body); font-size: 13px;">${item.remark_text || item.finding}</div>
+                <div class="citation-box" style="font-family: var(--font-body); font-size: 13px;">${escapeHtml(item.remark_text || item.finding)}</div>
               `;
             }
 
@@ -360,4 +370,3 @@ class EvidencePanel {
 }
 
 window.EvidencePanel = EvidencePanel;
-export default EvidencePanel;

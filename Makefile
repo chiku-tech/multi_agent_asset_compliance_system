@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint typecheck format local-api sam-local sam-build \
+.PHONY: install install-dev test lint typecheck format format-check local-api sam-local sam-build \
         deploy-staging deploy-prod ssm-bootstrap clean env-to-json
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,6 +62,8 @@ sam-local: env-to-json
 # ─────────────────────────────────────────────────────────────────────────────
 
 sam-build:
+	mkdir -p dependencies/python
+	pip install -r requirements.txt -t dependencies/python
 	sam build --template-file deploy/aws-sam/template.yaml --use-container
 
 deploy-staging:

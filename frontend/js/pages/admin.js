@@ -1,5 +1,4 @@
 // js/pages/admin.js
-import { Config } from '../config.js';
 
 // DOM Elements
 const apiStatusBadge = document.getElementById('api-status-badge');
@@ -51,18 +50,18 @@ let currentActiveAssetId = '';
 // Initialize page
 async function init() {
   // 1. Setup dev mode / default keys
-  await Config.fetchAndSetupDevMode();
+  await window.Config.fetchAndSetupDevMode();
 
   // 2. Load API Key status
   updateApiKeyStatus();
 
   // 3. Load active Asset ID
-  currentActiveAssetId = Config.getCurrentAssetId();
+  currentActiveAssetId = window.Config.getCurrentAssetId();
   targetAssetIdInput.value = currentActiveAssetId;
   activeAssetBadge.textContent = currentActiveAssetId;
 
   // 4. Fetch initial stats
-  if (Config.getApiKey()) {
+  if (window.Config.getApiKey()) {
     await fetchStats(currentActiveAssetId);
   } else {
     window.ApiClient.showToast("API Key is not configured. Please set the key first.", "warning");
@@ -75,7 +74,7 @@ async function init() {
 
 // Update API status display
 function updateApiKeyStatus() {
-  const key = Config.getApiKey();
+  const key = window.Config.getApiKey();
   if (key) {
     apiStatusBadge.textContent = "Configured";
     apiStatusBadge.className = "badge badge-success";
@@ -99,7 +98,7 @@ async function fetchStats(assetId) {
     const res = await window.ApiClient.getAssetStats(assetId);
     
     // Save as current globally active asset if successful
-    Config.setCurrentAssetId(assetId);
+    window.Config.setCurrentAssetId(assetId);
     currentActiveAssetId = assetId;
     activeAssetBadge.textContent = assetId;
     targetAssetIdInput.value = assetId;
@@ -193,7 +192,7 @@ function setupEventListeners() {
 
   // API Key modal open/close
   configureApiKeyBtn.addEventListener('click', () => {
-    apiKeyInput.value = Config.getApiKey();
+    apiKeyInput.value = window.Config.getApiKey();
     apiKeyModal.classList.add('open');
   });
 
@@ -217,7 +216,7 @@ function setupEventListeners() {
     try {
       const res = await window.ApiClient.verifyApiKey(key);
       if (res.valid) {
-        Config.setApiKey(key);
+        window.Config.setApiKey(key);
         updateApiKeyStatus();
         window.ApiClient.showToast("API Key verified and updated successfully!", "success");
         closeApiKeyModal();
@@ -236,7 +235,7 @@ function setupEventListeners() {
 
   // GDPR Delete open modal
   deleteAssetBtn.addEventListener('click', () => {
-    if (!Config.getApiKey()) {
+    if (!window.Config.getApiKey()) {
       window.ApiClient.showToast("API Key is missing. Configure it first.", "warning");
       apiKeyModal.classList.add('open');
       return;

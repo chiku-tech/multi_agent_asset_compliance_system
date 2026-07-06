@@ -84,7 +84,7 @@ class RulesOutput(BaseModel):
 async def _call_rule_llm(llm: Any, messages: list) -> RulesOutput:
     """Helper to call rule agent LLM with circuit breaker."""
     structured_llm = llm.with_structured_output(RulesOutput)
-    cb = circuit_breaker("llm", failure_threshold=3, recovery_timeout=60)
+    cb = circuit_breaker("llm_rule", failure_threshold=3, recovery_timeout=60)
     return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
 
 

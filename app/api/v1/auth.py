@@ -2,15 +2,15 @@
 Authentication API endpoints for the frontend application.
 
 Provides endpoints to:
-  - GET /auth/config: Retrieve configuration settings (such as dev_mode and default key for auto-filling)
+  - GET /auth/config: Retrieve configuration settings (such as dev_mode)
   - POST /auth/verify: Verify a user-provided API key
 """
 
 import hmac
-from fastapi import APIRouter, HTTPException, status
+
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.config import get_settings
 from app.dependencies import SettingsDep
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -46,7 +46,7 @@ async def get_auth_config(settings: SettingsDep) -> AuthConfigResponse:
     is_dev = settings.local_offline or settings.app_env == "development"
     return AuthConfigResponse(
         dev_mode=is_dev,
-        default_api_key=settings.api_secret_key.get_secret_value() if is_dev else None,
+        default_api_key=None,
     )
 
 
@@ -58,6 +58,8 @@ async def get_auth_config(settings: SettingsDep) -> AuthConfigResponse:
 )
 async def verify_api_key(request: VerifyRequest, settings: SettingsDep) -> VerifyResponse:
     """Verify the provided API key is correct."""
+    if settings.api_secret_key is None:
+        return VerifyResponse(valid=False)
     expected_key = settings.api_secret_key.get_secret_value()
     valid = hmac.compare_digest(
         request.api_key.encode("utf-8"),
