@@ -269,3 +269,59 @@ async def test_ingest_update_event(s3_bucket, mock_pinecone_index, mock_embeddin
         ids=["vec1", "vec2"],
         namespace="asset_abc-123",
     )
+
+
+@pytest.mark.asyncio
+async def test_upload_and_ingest_documents(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+    """POST /ingest/upload with files should upload to S3 and ingest."""
+    mock_pinecone_index.describe_index_stats.return_value = MagicMock(namespaces={})
+
+    app = create_app()
+    with (
+        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
+        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
+        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            # Create a fake PDF file for upload using proper tuple format
+            fake_pdf = ("test_manual.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
+            response = await client.post(
+                "/api/v1/ingest/upload",
+                data={
+                    "asset_id": "test-upload-asset",
+                    "event": "create",
+                },
+                files={"files": fake_pdf},
+                headers=_HEADERS,
+            )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["asset_id"] == "test-upload-asset"
+    assert body["event"] == "create"
+    assert body["documents_processed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_invalid_asset_id(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+    """POST /ingest/upload with invalid asset_id should return 400."""
+    app = create_app()
+    with (
+        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
+        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
+        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            fake_pdf = ("test.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
+            response = await client.post(
+                "/api/v1/ingest/upload",
+                data={
+                    "asset_id": "../../etc/passwd",
+                    "event": "create",
+                },
+                files={"files": fake_pdf},
+                headers=_HEADERS,
+            )
+
+    assert response.status_code == 400
+    assert "asset_id" in response.json()["detail"].lower()

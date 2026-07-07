@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
@@ -95,12 +95,24 @@ async def _ingest_document(
     Returns the number of vectors upserted.
     Callers are responsible for any pre-deletion logic (update events).
     """
-    if document.doc_type == "installation_image":
-        description = await _describe_image(image_llm, s3_client, settings, document, asset_id)
-        chunks = document_loader.load_image_document(document, asset_id, description)
-    else:
-        raw = await s3_service.download_bytes(s3_client, settings.s3_bucket_name, document.s3_key)
-        chunks = document_loader.load_pdf(raw, document, asset_id)
+    try:
+        if document.doc_type == "installation_image":
+            description = await _describe_image(image_llm, s3_client, settings, document, asset_id)
+            chunks = document_loader.load_image_document(document, asset_id, description)
+        else:
+            raw = await s3_service.download_bytes(
+                s3_client, settings.s3_bucket_name, document.s3_key
+            )
+            chunks = document_loader.load_pdf(raw, document, asset_id)
+    except Exception as exc:
+        logger.error(
+            "document_download_error",
+            doc_id=document.doc_id,
+            asset_id=asset_id,
+            error=type(exc).__name__,
+            error_msg=str(exc)[:200],
+        )
+        return 0
 
     if not chunks:
         logger.warning(
@@ -253,6 +265,8 @@ async def upload_and_ingest_documents(
                 namespace=f"asset_{asset_id}",
             )
 
+    import re
+
     documents = []
     # Process each uploaded file: save to S3 first
     for upload_file in files:
@@ -260,6 +274,12 @@ async def upload_and_ingest_documents(
         # Generate a safe doc_id and key from filename
         safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
         doc_id = f"doc_{safe_name.rsplit('.', 1)[0]}"
+        # Validate asset_id to prevent path traversal
+        if not re.match(r"^[a-zA-Z0-9_-]+$", asset_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="asset_id must contain only alphanumeric characters, hyphens, or underscores",
+            )
         s3_key = f"{asset_id}/{safe_name}"
 
         # Determine doc_type from filename extension

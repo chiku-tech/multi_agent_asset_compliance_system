@@ -68,57 +68,70 @@ async def evidence_agent_node(state: AuditState) -> dict[str, Any]:
 
     evidence: list[dict[str, Any]] = []
 
-    # ── Evidence from retrieved document chunks ───────────────────────────────
-    for chunk in state.get("retrieved_chunks", []):
-        evidence.append(
-            {
-                "source_type": "document",
-                "doc_id": chunk["doc_id"],
-                "doc_type": chunk["doc_type"],
-                "filename": chunk["filename"],
-                "page": chunk.get("page"),
-                # Truncate excerpt to keep the evidence bundle a reasonable size
-                "excerpt": chunk["text"][:400],
-                "finding": f"Relevant clause from {chunk['filename']}: {chunk['text'][:200]}",
-                "relevance_score": chunk.get("score"),
-            }
-        )
-
-    # ── Evidence from image analyses ──────────────────────────────────────────
-    for analysis in state.get("image_analyses", []):
-        for finding in analysis.get("findings", []):
+    try:
+        # ── Evidence from retrieved document chunks ───────────────────────────────
+        for chunk in state.get("retrieved_chunks", []):
+            if not isinstance(chunk, dict):
+                logger.warning("invalid_chunk_type", chunk_type=type(chunk).__name__)
+                continue
             evidence.append(
                 {
-                    "source_type": "image",
-                    "s3_key": analysis["s3_key"],
-                    "finding": finding,
-                    "condition": analysis.get("condition"),
-                }
-            )
-        # Include the overall condition as a summary finding
-        if analysis.get("raw_description"):
-            evidence.append(
-                {
-                    "source_type": "image",
-                    "s3_key": analysis["s3_key"],
-                    "finding": f"Image condition [{analysis.get('condition', 'unknown')}]: "
-                    f"{analysis['raw_description'][:300]}",
-                    "condition": analysis.get("condition"),
+                    "source_type": "document",
+                    "doc_id": chunk.get("doc_id", "unknown"),
+                    "doc_type": chunk.get("doc_type", "unknown"),
+                    "filename": chunk.get("filename", "unknown"),
+                    "page": chunk.get("page"),
+                    "excerpt": str(chunk.get("text", ""))[:400],
+                    "finding": f"Relevant clause from {chunk.get('filename', 'unknown')}: {str(chunk.get('text', ''))[:200]}",
+                    "relevance_score": chunk.get("score"),
                 }
             )
 
-    # ── Evidence from auditor remarks ─────────────────────────────────────────
-    if state.get("auditor_remarks"):
-        evidence.append(
-            {
-                "source_type": "auditor_remark",
-                "remark_text": state["auditor_remarks"],
-                "finding": f"Auditor observed: {state['auditor_remarks']}",
-            }
-        )
+        # ── Evidence from image analyses ──────────────────────────────────────────
+        for analysis in state.get("image_analyses", []):
+            if not isinstance(analysis, dict):
+                logger.warning("invalid_analysis_type", analysis_type=type(analysis).__name__)
+                continue
+            for finding in analysis.get("findings", []):
+                evidence.append(
+                    {
+                        "source_type": "image",
+                        "s3_key": analysis.get("s3_key", "unknown"),
+                        "finding": finding,
+                        "condition": analysis.get("condition"),
+                    }
+                )
+            if analysis.get("raw_description"):
+                evidence.append(
+                    {
+                        "source_type": "image",
+                        "s3_key": analysis.get("s3_key", "unknown"),
+                        "finding": f"Image condition [{analysis.get('condition', 'unknown')}]: "
+                        f"{str(analysis.get('raw_description', ''))[:300]}",
+                        "condition": analysis.get("condition"),
+                    }
+                )
 
-    # Sort by priority (1 is highest, 5 is lowest)
-    evidence.sort(key=_get_priority)
+        # ── Evidence from auditor remarks ─────────────────────────────────────────
+        if state.get("auditor_remarks"):
+            evidence.append(
+                {
+                    "source_type": "auditor_remark",
+                    "remark_text": state["auditor_remarks"],
+                    "finding": f"Auditor observed: {state['auditor_remarks']}",
+                }
+            )
+
+        # Sort by priority (1 is highest, 5 is lowest)
+        evidence.sort(key=_get_priority)
+    except Exception as exc:
+        logger.error(
+            "evidence_agent_error",
+            asset_id=state.get("asset_id"),
+            error=type(exc).__name__,
+            error_msg=str(exc)[:200],
+        )
+        state.setdefault("errors", []).append(f"Evidence agent error: {type(exc).__name__}: {str(exc)[:200]}")
 
     # Cap the bundle to prevent context window explosion and massive API payloads
     original_count = len(evidence)

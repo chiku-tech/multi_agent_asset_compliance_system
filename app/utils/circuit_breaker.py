@@ -20,10 +20,12 @@ logger = structlog.get_logger(__name__)
 T = TypeVar("T")
 
 
-class CircuitBreakerOpenError(AssetComplianceBaseError):
+class CircuitBreakerOpenError(Exception):
     """Raised when the circuit breaker is OPEN and rejecting calls."""
 
-    pass
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
 
 
 class CircuitBreaker:

@@ -183,8 +183,14 @@ def mock_chat_model():
 
 
 @pytest.fixture()
-def mock_embeddings_model():
+def mock_embeddings():
     """Provide a mocked Langchain Embeddings model returning 1536-dim zero vectors."""
+    return _create_mock_embeddings_instance()
+
+
+@pytest.fixture()
+def mock_embeddings_model():
+    """Alias for mock_embeddings for backward compatibility."""
     return _create_mock_embeddings_instance()
 
 

@@ -82,18 +82,22 @@ class AuditState(TypedDict, total=False):
     errors: Annotated[list[str], operator.add]
 
 
+def _escape_value(v: Any) -> Any:
+    """Recursively escape a value to prevent prompt injection."""
+    if isinstance(v, str):
+        return html.escape(v)
+    elif isinstance(v, dict):
+        return _escape_dict(v)
+    elif isinstance(v, list):
+        return [_escape_value(item) for item in v]
+    return v
+
+
 def _escape_dict(d: dict[str, Any]) -> dict[str, Any]:
     """Recursively HTML-escape string values in a dictionary to prevent prompt injection (SEC-2)."""
     result = {}
     for k, v in d.items():
-        if isinstance(v, str):
-            result[k] = html.escape(v)
-        elif isinstance(v, dict):
-            result[k] = _escape_dict(v)
-        elif isinstance(v, list):
-            result[k] = [html.escape(item) if isinstance(item, str) else item for item in v]
-        else:
-            result[k] = v
+        result[k] = _escape_value(v)
     return result
 
 

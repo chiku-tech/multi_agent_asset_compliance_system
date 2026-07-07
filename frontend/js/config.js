@@ -45,8 +45,8 @@ export const Config = {
   },
 
   reset() {
+    Object.values(CONFIG_KEYS).forEach(key => localStorage.removeItem(key));
     localStorage.removeItem('asset_compliance_api_base_url');
-    localStorage.removeItem(CONFIG_KEYS.API_KEY);
   },
 
   set(key, value) {
@@ -77,7 +77,7 @@ export const Config = {
     try {
       const logs = this.getActivityLog();
       logs.push({
-        id: 'act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+        id: 'act-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11),
         type,
         message,
         status,

@@ -201,8 +201,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_cors(self) -> "Settings":
         """Prevent wildcard CORS in production to mitigate SEC-1."""
-        if self.app_env == "production" and "*" in self.cors_allowed_origins:
-            raise ValueError("Wildcard CORS (['*']) is not allowed in production environments.")
+        if self.app_env == "production":
+            if "*" in self.cors_allowed_origins or ["*"] == self.cors_allowed_origins:
+                raise ValueError("Wildcard CORS (['*']) is not allowed in production environments.")
         return self
 
 

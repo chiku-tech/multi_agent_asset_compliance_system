@@ -16,6 +16,9 @@
   
   --on-surface: #e0e2ed;
   --on-surface-variant: #c1c6d7;
+  --on-surface-dim: #8b92a5;
+  --fs-body-sm: 12px;
+  --black: #000000;
   
   /* Elevation & Borders */
   --border-radius-sm: 4px;

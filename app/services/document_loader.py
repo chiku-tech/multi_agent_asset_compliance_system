@@ -39,6 +39,13 @@ def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     Overlap allows adjacent chunks to share context, reducing the chance
     that a relevant clause is split across chunk boundaries.
     """
+    if chunk_size <= 0:
+        raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+    if overlap < 0:
+        raise ValueError(f"overlap must be non-negative, got {overlap}")
+    if overlap >= chunk_size:
+        raise ValueError(f"overlap ({overlap}) must be less than chunk_size ({chunk_size}) to prevent infinite loop")
+
     chunks: list[str] = []
     start = 0
     while start < len(text):

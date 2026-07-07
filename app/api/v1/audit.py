@@ -48,9 +48,7 @@ logger = structlog.get_logger(__name__)
 # Ordered list of node names — used to calculate progress percentage
 _NODE_ORDER = ["document_agent", "image_agent", "rule_agent", "evidence_agent", "verdict_agent"]
 
-# Read rate limit from settings once at module load time.
-# Safe for Lambda warm starts: settings are cached via lru_cache.
-_AUDIT_RATE_LIMIT = get_settings().rate_limit_audit
+# Rate limit is read dynamically to avoid tight coupling at module load time
 
 
 async def _stream_audit(
@@ -74,11 +72,10 @@ async def _stream_audit(
 
     final_verdict: dict[str, Any] | None = None
 
+    settings = get_settings()
+
     try:
         import asyncio
-        from app.config import get_settings
-
-        settings = get_settings()
 
         async with asyncio.timeout(settings.audit_timeout_seconds):
             async for event_data in audit_graph.astream(initial_state, stream_mode="updates"):
@@ -115,7 +112,7 @@ async def _stream_audit(
                 dynamodb_client, table_name, request.run_id, final_verdict
             )
 
-    except TimeoutError as exc:
+    except TimeoutError:
         logger.error(
             "audit_stream_timeout", run_id=request.run_id, timeout=settings.audit_timeout_seconds
         )
@@ -164,7 +161,7 @@ async def _stream_audit(
         409: {"description": "Audit run is already in progress for this run_id."},
     },
 )
-@limiter.limit(_AUDIT_RATE_LIMIT)
+@limiter.limit(lambda: get_settings().rate_limit_audit)
 async def run_audit(
     request: Request,  # Must be named 'request' for slowapi
     audit_request: AuditRequest,  # Pydantic-validated request body

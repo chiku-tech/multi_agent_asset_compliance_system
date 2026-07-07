@@ -255,3 +255,7 @@ class ProgressTracker {
 }
 
 window.ProgressTracker = ProgressTracker;
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ProgressTracker;
+}
