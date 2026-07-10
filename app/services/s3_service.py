@@ -17,6 +17,8 @@ from typing import Any
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from app.utils.circuit_breaker import circuit_breaker
+
 logger = structlog.get_logger(__name__)
 
 
@@ -30,6 +32,7 @@ _MIME_MAP: dict[str, str] = {
 }
 
 
+@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -66,6 +69,7 @@ async def download_as_base64(s3_client: Any, bucket: str, key: str) -> str:
     return await asyncio.to_thread(_download_as_base64_sync, s3_client, bucket, key)
 
 
+@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
 def _generate_presigned_url_sync(
     s3_client: Any,
     bucket: str,
@@ -111,6 +115,7 @@ def infer_media_type(filename: str) -> str:
     return _MIME_MAP.get(ext, "application/octet-stream")
 
 
+@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
 def _delete_asset_documents_sync(s3_client: Any, bucket: str, asset_id: str) -> int:
     """Delete all S3 objects under an asset prefix synchronously."""
     prefix = f"{asset_id}/"
