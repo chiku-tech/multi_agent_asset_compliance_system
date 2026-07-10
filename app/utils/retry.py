@@ -6,6 +6,7 @@ Provides decorators for retrying transient failures with exponential backoff.
 
 import asyncio
 import random
+import time
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
@@ -112,8 +113,6 @@ def retry_with_backoff(
                             delay=total_delay,
                             error=type(exc).__name__,
                         )
-                        import time
-
                         time.sleep(total_delay)
 
                 # This should never be reached, but just in case

@@ -13,8 +13,6 @@ from typing import Any, TypeVar
 
 import structlog
 
-from app.utils.exceptions import AssetComplianceBaseError
-
 logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")

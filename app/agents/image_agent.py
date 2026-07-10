@@ -17,6 +17,7 @@ Populates: state["image_analyses"]
 
 from typing import Any
 
+import asyncio
 import structlog
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
@@ -99,8 +100,6 @@ async def image_agent_node(state: AuditState) -> dict[str, Any]:
     Returns:
         dict with keys: image_analyses, errors
     """
-    import asyncio
-
     settings = get_settings()
     llm = get_image_agent_llm()
     s3_client = get_s3_client()

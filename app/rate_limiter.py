@@ -15,6 +15,8 @@ Usage in route handlers::
         ...
 """
 
+import hashlib
+
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -28,7 +30,6 @@ def _get_api_key_for_rate_limit(request: Request) -> str:
     per shared NAT gateway IP, while still protecting unauthenticated paths.
     The API key is hashed to avoid storing raw secrets in memory.
     """
-    import hashlib
     key = request.headers.get("X-API-Key")
     if key:
         return hashlib.sha256(key.encode()).hexdigest()[:16]

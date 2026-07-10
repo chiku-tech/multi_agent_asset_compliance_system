@@ -12,6 +12,8 @@ import structlog
 from langchain_core.embeddings import Embeddings
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from app.config import get_settings
+
 logger = structlog.get_logger(__name__)
 
 
@@ -28,8 +30,6 @@ async def embed_texts(client: Embeddings, texts: list[str]) -> list[list[float]]
     Raises EmbeddingError after 3 failed retry attempts.
     """
     all_embeddings: list[list[float]] = []
-
-    from app.config import get_settings
 
     batch_size = get_settings().embedding_batch_size
 

@@ -108,7 +108,7 @@
         if (entry.status === 'error') badgeClass = 'badge-non-compliant';
 
         return `
-          <tr style="border-bottom: 1px solid var(--slate-800); hover: background-color: rgba(255, 255, 255, 0.02);">
+          <tr class="activity-row" style="border-bottom: 1px solid var(--slate-800);">
             <td style="padding: 12px 16px; font-family: var(--font-code); font-size: var(--fs-code-sm); color: var(--on-surface-variant); white-space: nowrap;">
               ${dateStr}
             </td>

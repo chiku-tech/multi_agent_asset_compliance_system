@@ -189,9 +189,9 @@ def mock_embeddings():
 
 
 @pytest.fixture()
-def mock_embeddings_model():
-    """Alias for mock_embeddings for backward compatibility."""
-    return _create_mock_embeddings_instance()
+def mock_embeddings_model(mock_embeddings):
+    """Alias for mock_embeddings for backward compatibility with existing tests."""
+    return mock_embeddings
 
 
 @pytest.fixture()

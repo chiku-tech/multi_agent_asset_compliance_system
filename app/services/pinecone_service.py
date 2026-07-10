@@ -18,7 +18,6 @@ import structlog
 from pinecone import Index
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from app.config import get_settings
 from app.utils.circuit_breaker import circuit_breaker
 
 logger = structlog.get_logger(__name__)

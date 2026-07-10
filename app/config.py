@@ -11,7 +11,7 @@ Usage:
 """
 
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -155,6 +155,12 @@ class Settings(BaseSettings):
         le=800,
         description="Max time allowed for the audit graph execution before timing out",
     )
+    node_timeout_seconds: int = Field(
+        default=60,
+        ge=5,
+        le=300,
+        description="Max time allowed for a single agent node before timing out",
+    )
 
     # ── DynamoDB ──────────────────────────────────────────────────────────────
     dynamodb_audit_table: str = Field(
@@ -192,14 +198,14 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def validate_api_key(self) -> "Settings":
+    def validate_api_key(self) -> Self:
         """Require API_SECRET_KEY in staging and production environments."""
         if self.app_env in ("staging", "production") and self.api_secret_key is None:
             raise ValueError("API_SECRET_KEY must be set in staging and production environments.")
         return self
 
     @model_validator(mode="after")
-    def validate_cors(self) -> "Settings":
+    def validate_cors(self) -> Self:
         """Prevent wildcard CORS in production to mitigate SEC-1."""
         if self.app_env == "production":
             if "*" in self.cors_allowed_origins or ["*"] == self.cors_allowed_origins:

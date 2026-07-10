@@ -39,6 +39,8 @@
     }) {
       // Create modal backdrop container
       const backdrop = document.createElement('div');
+      backdrop.setAttribute('role', 'dialog');
+      backdrop.setAttribute('aria-modal', 'true');
       Object.assign(backdrop.style, {
         position: 'fixed',
         top: '0',
@@ -75,10 +77,13 @@
       if (variant === 'danger') confirmBtnClass = 'btn-danger';
       if (variant === 'warning') confirmBtnClass = 'btn-warning';
 
+      const titleId = `modal-title-${Date.now()}`;
+      backdrop.setAttribute('aria-labelledby', titleId);
+
       modal.innerHTML = `
         <div class="card-header" style="border-bottom: 1px solid var(--slate-700); margin-bottom: 16px; padding-bottom: 12px;">
-          <h3 class="card-title modal-title" style="font-family: var(--font-headings); font-size: var(--fs-headline-sm); font-weight: var(--fw-headline-sm); color: var(--on-surface);"></h3>
-          <button class="modal-close-btn" style="
+          <h3 class="card-title modal-title" id="${titleId}" style="font-family: var(--font-headings); font-size: var(--fs-headline-sm); font-weight: var(--fw-headline-sm); color: var(--on-surface);"></h3>
+          <button class="modal-close-btn" aria-label="Close" style="
             background: none;
             border: none;
             color: var(--on-surface-variant);
@@ -127,32 +132,32 @@
       const confirmBtn = modal.querySelector('.modal-confirm-btn');
       const closeBtn = modal.querySelector('.modal-close-btn');
 
-      cancelBtn.onclick = () => {
+      cancelBtn.addEventListener('click', () => {
         if (onCancel) {
           onCancel(close);
         } else {
           close();
         }
-      };
+      });
 
-      confirmBtn.onclick = () => {
+      confirmBtn.addEventListener('click', () => {
         if (onConfirm) {
           onConfirm(close);
         } else {
           close();
         }
-      };
+      });
 
-      closeBtn.onclick = () => {
+      closeBtn.addEventListener('click', () => {
         close();
-      };
+      });
 
       // Close modal on click of outside wrapper
-      backdrop.onclick = (e) => {
+      backdrop.addEventListener('click', (e) => {
         if (e.target === backdrop) {
           close();
         }
-      };
+      });
 
       // Accessible ESC key dismiss handler
       const keyHandler = (e) => {

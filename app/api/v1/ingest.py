@@ -14,6 +14,7 @@ All document types are processed sequentially within a single Lambda invocation.
 """
 
 import asyncio
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -264,8 +265,6 @@ async def upload_and_ingest_documents(
                 completed_at=datetime.now(UTC),
                 namespace=f"asset_{asset_id}",
             )
-
-    import re
 
     documents = []
     # Process each uploaded file: save to S3 first

@@ -26,6 +26,7 @@ The backend client reads the stream line-by-line.  It can show progress in the
 UI from the node_complete events, then process the final verdict event.
 """
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -52,7 +53,10 @@ _NODE_ORDER = ["document_agent", "image_agent", "rule_agent", "evidence_agent", 
 
 
 async def _stream_audit(
-    request: AuditRequest, dynamodb_client: Any, table_name: str
+    request: AuditRequest,
+    dynamodb_client: Any,
+    table_name: str,
+    settings: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Async generator yielding NDJSON lines as the LangGraph graph executes.
@@ -72,11 +76,7 @@ async def _stream_audit(
 
     final_verdict: dict[str, Any] | None = None
 
-    settings = get_settings()
-
     try:
-        import asyncio
-
         async with asyncio.timeout(settings.audit_timeout_seconds):
             async for event_data in audit_graph.astream(initial_state, stream_mode="updates"):
                 # event_data is a dict: {node_name: partial_state_update}
@@ -234,7 +234,7 @@ async def run_audit(
 
     log.info("audit_run_started")
     return StreamingResponse(
-        _stream_audit(audit_request, dynamodb_client, settings.dynamodb_audit_table),
+        _stream_audit(audit_request, dynamodb_client, settings.dynamodb_audit_table, settings),
         media_type="application/x-ndjson",
         headers={
             "X-Run-Id": audit_request.run_id,

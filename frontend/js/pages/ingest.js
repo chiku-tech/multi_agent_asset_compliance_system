@@ -96,46 +96,61 @@
       });
 
       // Tab 1 Dropzone & File Input
-      this.directDropzone.addEventListener('click', () => this.directFileInput.click());
-      this.directFileInput.addEventListener('change', (e) => this.handleDirectFileSelect(e));
+      this.directDropzoneClickBound = () => this.directFileInput.click();
+      this.directDropzone.addEventListener('click', this.directDropzoneClickBound);
+      this.onDirectFileChangeBound = (e) => this.handleDirectFileSelect(e);
+      this.directFileInput.addEventListener('change', this.onDirectFileChangeBound);
       
-      this.setupDropzoneEvents(this.directDropzone, (files) => this.addDirectFiles(files));
+      this._directDropzoneHandlers = this.setupDropzoneEvents(this.directDropzone, (files) => this.addDirectFiles(files));
 
       // Tab 2 Textarea
       this.onJsonInputBound = () => this.validateJsonRealtime();
       this.jsonTextarea.addEventListener('input', this.onJsonInputBound);
 
       // Tab 3 Dropzone & File Input
-      this.jsonFileDropzone.addEventListener('click', () => this.jsonFileInput.click());
-      this.jsonFileInput.addEventListener('change', (e) => this.handleJsonFileSelect(e));
+      this.jsonFileDropzoneClickBound = () => this.jsonFileInput.click();
+      this.jsonFileDropzone.addEventListener('click', this.jsonFileDropzoneClickBound);
+      this.onJsonFileChangeBound = (e) => this.handleJsonFileSelect(e);
+      this.jsonFileInput.addEventListener('change', this.onJsonFileChangeBound);
       
-      this.setupDropzoneEvents(this.jsonFileDropzone, (files) => this.handleJsonFileDrop(files));
+      this._jsonFileDropzoneHandlers = this.setupDropzoneEvents(this.jsonFileDropzone, (files) => this.handleJsonFileDrop(files));
     },
 
     setupDropzoneEvents(dropzone, onFilesDropped) {
-      ['dragenter', 'dragover'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          dropzone.classList.add('dragover');
-        }, false);
-      });
+      const handlers = {};
 
-      ['dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          dropzone.classList.remove('dragover');
-        }, false);
-      });
-
-      dropzone.addEventListener('drop', (e) => {
+      handlers.dragenter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      };
+      handlers.dragover = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      };
+      handlers.dragleave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      };
+      handlers.drop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
         const dt = e.dataTransfer;
         const files = dt.files;
         if (files && files.length > 0) {
           onFilesDropped(files);
         }
-      }, false);
+      };
+
+      dropzone.addEventListener('dragenter', handlers.dragenter, false);
+      dropzone.addEventListener('dragover', handlers.dragover, false);
+      dropzone.addEventListener('dragleave', handlers.dragleave, false);
+      dropzone.addEventListener('drop', handlers.drop, false);
+
+      return handlers;
     },
 
     switchTab(tabId) {
@@ -673,6 +688,38 @@
       if (this.jsonTextarea && this.onJsonInputBound) {
         this.jsonTextarea.removeEventListener('input', this.onJsonInputBound);
       }
+      if (this.directDropzone && this.directDropzoneClickBound) {
+        this.directDropzone.removeEventListener('click', this.directDropzoneClickBound);
+      }
+      if (this.directFileInput && this.onDirectFileChangeBound) {
+        this.directFileInput.removeEventListener('change', this.onDirectFileChangeBound);
+      }
+      if (this.jsonFileDropzone && this.jsonFileDropzoneClickBound) {
+        this.jsonFileDropzone.removeEventListener('click', this.jsonFileDropzoneClickBound);
+      }
+      if (this.jsonFileInput && this.onJsonFileChangeBound) {
+        this.jsonFileInput.removeEventListener('change', this.onJsonFileChangeBound);
+      }
+      if (this._directDropzoneHandlers && this.directDropzone) {
+        const h = this._directDropzoneHandlers;
+        this.directDropzone.removeEventListener('dragenter', h.dragenter, false);
+        this.directDropzone.removeEventListener('dragover', h.dragover, false);
+        this.directDropzone.removeEventListener('dragleave', h.dragleave, false);
+        this.directDropzone.removeEventListener('drop', h.drop, false);
+      }
+      if (this._jsonFileDropzoneHandlers && this.jsonFileDropzone) {
+        const h = this._jsonFileDropzoneHandlers;
+        this.jsonFileDropzone.removeEventListener('dragenter', h.dragenter, false);
+        this.jsonFileDropzone.removeEventListener('dragover', h.dragover, false);
+        this.jsonFileDropzone.removeEventListener('dragleave', h.dragleave, false);
+        this.jsonFileDropzone.removeEventListener('drop', h.drop, false);
+      }
+      const eventRadios = this.form ? this.form.querySelectorAll('input[name="ingest-event"]') : [];
+      eventRadios.forEach(radio => {
+        if (this.onEventRadioChangeBound) {
+          radio.removeEventListener('change', this.onEventRadioChangeBound);
+        }
+      });
     }
   };
 })();

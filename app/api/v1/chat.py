@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException, status
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from app.dependencies import ChatLLMDep, EmbeddingsDep, PineconeDep, SettingsDep
+from app.schemas.audit import AssetSpec
 from app.schemas.chat import ChatRequest, ChatResponse, SourceCitation
 from app.services import pinecone_service, web_search_service
 from app.services.embedding_service import embed_query
@@ -65,9 +66,6 @@ def _build_rag_context(chunks: list[dict[str, Any]]) -> str:
         )
         blocks.append(f"{header}\n{meta.get('text', '')}")
     return "\n\n---\n\n".join(blocks)
-
-
-from app.schemas.audit import AssetSpec
 
 
 def _build_spec_context(

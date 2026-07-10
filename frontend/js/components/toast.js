@@ -22,10 +22,12 @@
       this.container = document.getElementById('toast-container');
       if (!this.container) {
         this.container = document.createElement('div');
-        this.container.id = 'toast-container';
-        
-        // CSS Style rules for Toast positioning
-        Object.assign(this.container.style, {
+      this.container.id = 'toast-container';
+      this.container.setAttribute('aria-live', 'assertive');
+      this.container.setAttribute('role', 'status');
+      
+      // CSS Style rules for Toast positioning
+      Object.assign(this.container.style, {
           position: 'fixed',
           top: '24px',
           right: '24px',
@@ -83,7 +85,7 @@
           color: #0b0e14;
         ">${icon}</span>
         <div class="toast-message" style="flex-grow: 1; font-family: var(--font-body); font-size: var(--fs-body-md); color: var(--on-surface); line-height: 1.25;"></div>
-        <button style="
+        <button aria-label="Dismiss" style="
           background: none;
           border: none;
           color: var(--on-surface-variant);
@@ -101,7 +103,7 @@
 
       // Set dismiss action
       const closeBtn = toast.querySelector('button');
-      closeBtn.onclick = () => this.dismiss(toast);
+      closeBtn.addEventListener('click', () => this.dismiss(toast));
 
       this.container.appendChild(toast);
 

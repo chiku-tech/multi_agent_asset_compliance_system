@@ -19,6 +19,7 @@ from typing import Any
 import structlog
 
 from app.agents.state import AuditState
+from app.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -62,8 +63,6 @@ async def evidence_agent_node(state: AuditState) -> dict[str, Any]:
     Returns:
         dict with keys: evidence_bundle
     """
-    from app.config import get_settings
-
     settings = get_settings()
 
     evidence: list[dict[str, Any]] = []
