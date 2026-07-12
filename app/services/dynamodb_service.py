@@ -199,7 +199,9 @@ def _erase_asset_runs_sync(
 ) -> int:
     erased_count = 0
 
-    for items in _query_asset_runs_by_asset_id(dynamodb_client, table_name, asset_id, projection="run_id"):
+    for items in _query_asset_runs_by_asset_id(
+        dynamodb_client, table_name, asset_id, projection="run_id"
+    ):
         for item in items:
             _update_item_erased(dynamodb_client, table_name, item["run_id"]["S"])
             erased_count += 1
@@ -218,7 +220,9 @@ def _get_asset_run_summary_sync(
     total_runs = 0
 
     for items in _query_asset_runs_by_asset_id(
-        dynamodb_client, table_name, asset_id,
+        dynamodb_client,
+        table_name,
+        asset_id,
         projection="run_id, #s, created_at",
         expression_attribute_names={"#s": "status"},
     ):

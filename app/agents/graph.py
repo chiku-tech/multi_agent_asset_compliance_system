@@ -39,6 +39,7 @@ def start_node(state: AuditState) -> dict[str, Any]:
 
 def _with_node_timeout(node_fn: Any) -> Any:
     """Wrap an agent node function with a per-node timeout."""
+
     async def _timed_node(state: AuditState) -> dict[str, Any]:
         settings = get_settings()
         try:
@@ -53,10 +54,9 @@ def _with_node_timeout(node_fn: Any) -> Any:
                 timeout=settings.node_timeout_seconds,
             )
             errors = list(state.get("errors", []))
-            errors.append(
-                f"Agent '{node_name}' timed out after {settings.node_timeout_seconds}s"
-            )
+            errors.append(f"Agent '{node_name}' timed out after {settings.node_timeout_seconds}s")
             return {"errors": errors}
+
     _timed_node.__name__ = node_fn.__name__
     return _timed_node
 

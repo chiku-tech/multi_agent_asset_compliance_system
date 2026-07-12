@@ -6,20 +6,17 @@ using moto for S3 and mock clients for Pinecone and OpenAI.
 No real network calls are made.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from app.main import create_app
-
-# Required X-API-Key header for all authenticated requests
-_API_KEY = "test-secret-key-minimum-32-chars-long"
-_HEADERS = {"X-API-Key": _API_KEY}
+from tests.integration.helpers import patch_dependencies
 
 
 @pytest.mark.asyncio
-async def test_ingest_create_event(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_ingest_create_event(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest with create event should return 200 and upsert vectors."""
     # Upload a fake PDF to mock S3
     s3_bucket.put_object(
@@ -29,29 +26,25 @@ async def test_ingest_create_event(s3_bucket, mock_pinecone_index, mock_embeddin
     )
     mock_pinecone_index.describe_index_stats.return_value = MagicMock(namespaces={})
 
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "create",
-                    "documents": [
-                        {
-                            "s3_key": "manuals/pump_v2.pdf",
-                            "doc_id": "manual-v2",
-                            "doc_type": "user_manual",
-                            "filename": "pump_v2.pdf",
-                        }
-                    ],
-                },
-                headers=_HEADERS,
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "create",
+                "documents": [
+                    {
+                        "s3_key": "manuals/pump_v2.pdf",
+                        "doc_id": "manual-v2",
+                        "doc_type": "user_manual",
+                        "filename": "pump_v2.pdf",
+                    }
+                ],
+            },
+            headers=auth_headers,
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -61,36 +54,34 @@ async def test_ingest_create_event(s3_bucket, mock_pinecone_index, mock_embeddin
 
 
 @pytest.mark.asyncio
-async def test_ingest_create_idempotent(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_ingest_create_idempotent(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest with create event on existing namespace should be a no-op."""
     # Namespace already has docs
     mock_pinecone_index.describe_index_stats.return_value = MagicMock(
         namespaces={"asset_abc-123": MagicMock(vector_count=10)}
     )
 
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "create",
-                    "documents": [
-                        {
-                            "s3_key": "manuals/pump_v2.pdf",
-                            "doc_id": "manual-v2",
-                            "doc_type": "user_manual",
-                            "filename": "pump_v2.pdf",
-                        }
-                    ],
-                },
-                headers=_HEADERS,
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "create",
+                "documents": [
+                    {
+                        "s3_key": "manuals/pump_v2.pdf",
+                        "doc_id": "manual-v2",
+                        "doc_type": "user_manual",
+                        "filename": "pump_v2.pdf",
+                    }
+                ],
+            },
+            headers=auth_headers,
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -101,85 +92,79 @@ async def test_ingest_create_idempotent(s3_bucket, mock_pinecone_index, mock_emb
 
 @pytest.mark.asyncio
 async def test_ingest_update_requires_single_document(
-    s3_bucket, mock_pinecone_index, mock_embeddings_model
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
 ):
     """POST /ingest with update event and multiple documents should return 422."""
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "update",
-                    "documents": [
-                        {
-                            "s3_key": "a.pdf",
-                            "doc_id": "doc-1",
-                            "doc_type": "user_manual",
-                            "filename": "a.pdf",
-                        },
-                        {
-                            "s3_key": "b.pdf",
-                            "doc_id": "doc-2",
-                            "doc_type": "safety_sheet",
-                            "filename": "b.pdf",
-                        },
-                    ],
-                },
-                headers=_HEADERS,
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "update",
+                "documents": [
+                    {
+                        "s3_key": "a.pdf",
+                        "doc_id": "doc-1",
+                        "doc_type": "user_manual",
+                        "filename": "a.pdf",
+                    },
+                    {
+                        "s3_key": "b.pdf",
+                        "doc_id": "doc-2",
+                        "doc_type": "safety_sheet",
+                        "filename": "b.pdf",
+                    },
+                ],
+            },
+            headers=auth_headers,
+        )
 
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_ingest_missing_api_key(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_ingest_missing_api_key(
+    async_client, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest without X-API-Key header should return 401."""
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "create",
-                    "documents": [
-                        {
-                            "s3_key": "a.pdf",
-                            "doc_id": "doc-1",
-                            "doc_type": "user_manual",
-                            "filename": "a.pdf",
-                        }
-                    ],
-                },
-                # No X-API-Key header
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "create",
+                "documents": [
+                    {
+                        "s3_key": "a.pdf",
+                        "doc_id": "doc-1",
+                        "doc_type": "user_manual",
+                        "filename": "a.pdf",
+                    }
+                ],
+            },
+            # No X-API-Key header
+        )
 
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_health_check_no_auth_required():
+async def test_health_check_no_auth_required(async_client):
     """GET /health should return 200 without authentication."""
-    app = create_app()
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/health")
+    response = await async_client.get("/health")
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
 
 @pytest.mark.asyncio
-async def test_ingest_add_event(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_ingest_add_event(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest with add event should return 200 and add vectors to existing namespace."""
     s3_bucket.put_object(
         Bucket="test-bucket",
@@ -190,29 +175,25 @@ async def test_ingest_add_event(s3_bucket, mock_pinecone_index, mock_embeddings_
         namespaces={"asset_abc-123": MagicMock(vector_count=5)}
     )
 
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "add",
-                    "documents": [
-                        {
-                            "s3_key": "manuals/pump_v3.pdf",
-                            "doc_id": "manual-v3",
-                            "doc_type": "user_manual",
-                            "filename": "pump_v3.pdf",
-                        }
-                    ],
-                },
-                headers=_HEADERS,
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "add",
+                "documents": [
+                    {
+                        "s3_key": "manuals/pump_v3.pdf",
+                        "doc_id": "manual-v3",
+                        "doc_type": "user_manual",
+                        "filename": "pump_v3.pdf",
+                    }
+                ],
+            },
+            headers=auth_headers,
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -222,7 +203,9 @@ async def test_ingest_add_event(s3_bucket, mock_pinecone_index, mock_embeddings_
 
 
 @pytest.mark.asyncio
-async def test_ingest_update_event(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_ingest_update_event(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest with update event should delete old doc vectors and insert new ones."""
     s3_bucket.put_object(
         Bucket="test-bucket",
@@ -235,29 +218,25 @@ async def test_ingest_update_event(s3_bucket, mock_pinecone_index, mock_embeddin
     )
     mock_pinecone_index.list.return_value = iter([["vec1", "vec2"]])
 
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/ingest",
-                json={
-                    "asset_id": "abc-123",
-                    "event": "update",
-                    "documents": [
-                        {
-                            "s3_key": "manuals/pump_v2_updated.pdf",
-                            "doc_id": "manual-v2",
-                            "doc_type": "user_manual",
-                            "filename": "pump_v2_updated.pdf",
-                        }
-                    ],
-                },
-                headers=_HEADERS,
-            )
+        response = await async_client.post(
+            "/api/v1/ingest",
+            json={
+                "asset_id": "abc-123",
+                "event": "update",
+                "documents": [
+                    {
+                        "s3_key": "manuals/pump_v2_updated.pdf",
+                        "doc_id": "manual-v2",
+                        "doc_type": "user_manual",
+                        "filename": "pump_v2_updated.pdf",
+                    }
+                ],
+            },
+            headers=auth_headers,
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -272,28 +251,26 @@ async def test_ingest_update_event(s3_bucket, mock_pinecone_index, mock_embeddin
 
 
 @pytest.mark.asyncio
-async def test_upload_and_ingest_documents(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_upload_and_ingest_documents(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest/upload with files should upload to S3 and ingest."""
     mock_pinecone_index.describe_index_stats.return_value = MagicMock(namespaces={})
 
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            # Create a fake PDF file for upload using proper tuple format
-            fake_pdf = ("test_manual.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
-            response = await client.post(
-                "/api/v1/ingest/upload",
-                data={
-                    "asset_id": "test-upload-asset",
-                    "event": "create",
-                },
-                files={"files": fake_pdf},
-                headers=_HEADERS,
-            )
+        # Create a fake PDF file for upload using proper tuple format
+        fake_pdf = ("test_manual.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
+        response = await async_client.post(
+            "/api/v1/ingest/upload",
+            data={
+                "asset_id": "test-upload-asset",
+                "event": "create",
+            },
+            files={"files": fake_pdf},
+            headers=auth_headers,
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -303,25 +280,23 @@ async def test_upload_and_ingest_documents(s3_bucket, mock_pinecone_index, mock_
 
 
 @pytest.mark.asyncio
-async def test_upload_invalid_asset_id(s3_bucket, mock_pinecone_index, mock_embeddings_model):
+async def test_upload_invalid_asset_id(
+    async_client, auth_headers, s3_bucket, mock_pinecone_index, mock_embeddings_model
+):
     """POST /ingest/upload with invalid asset_id should return 400."""
-    app = create_app()
-    with (
-        patch("app.dependencies._get_pinecone_index", return_value=mock_pinecone_index),
-        patch("app.dependencies._get_embeddings_model", return_value=mock_embeddings_model),
-        patch("app.dependencies._get_s3_client", return_value=s3_bucket),
+    with patch_dependencies(
+        pinecone=mock_pinecone_index, embeddings=mock_embeddings_model, s3=s3_bucket
     ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            fake_pdf = ("test.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
-            response = await client.post(
-                "/api/v1/ingest/upload",
-                data={
-                    "asset_id": "../../etc/passwd",
-                    "event": "create",
-                },
-                files={"files": fake_pdf},
-                headers=_HEADERS,
-            )
+        fake_pdf = ("test.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")
+        response = await async_client.post(
+            "/api/v1/ingest/upload",
+            data={
+                "asset_id": "../../etc/passwd",
+                "event": "create",
+            },
+            files={"files": fake_pdf},
+            headers=auth_headers,
+        )
 
     assert response.status_code == 400
-    assert "asset_id" in response.json()["detail"].lower()
+    assert "asset_id" in response.json()["detail"]["message"].lower()

@@ -16,14 +16,14 @@ Populates: state["image_analyses"]
 """
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import structlog
-from pydantic import BaseModel
 
 from app.agents.state import AuditState, ImageAnalysis
 from app.config import get_settings
 from app.dependencies import get_image_agent_llm, get_s3_client
+from app.schemas.image import ImageAnalysis as ImageAnalysisSchema
 from app.services import s3_service
 from app.utils.llm import call_structured_llm
 from app.utils.retry import llm_retry
@@ -35,13 +35,6 @@ _IMAGE_ANALYSIS_PROMPT = """Analyse this audit photograph of a physical asset fo
 Be precise and technical. Document every visible defect, label, and condition indicator."""
 
 
-class ImageAnalysisOutput(BaseModel):
-    findings: list[str]
-    labels: list[str]
-    condition: str
-    raw_description: str
-
-
 @llm_retry
 async def _process_single_image(
     s3_key: str, s3_client: Any, settings: Any, llm: Any
@@ -49,18 +42,15 @@ async def _process_single_image(
     """Helper to process a single image, returning the analysis or catching the exception."""
     try:
         messages = [
-            await s3_service.build_image_message(s3_client, settings.s3_bucket_name, s3_key, _IMAGE_ANALYSIS_PROMPT)
+            await s3_service.build_image_message(
+                s3_client, settings.s3_bucket_name, s3_key, _IMAGE_ANALYSIS_PROMPT
+            )
         ]
 
-        parsed_obj = await call_structured_llm(llm, ImageAnalysisOutput, messages, "llm_image")
+        parsed_obj = await call_structured_llm(llm, ImageAnalysisSchema, messages, "llm_image")
+        parsed_obj.s3_key = s3_key
 
-        analysis: ImageAnalysis = {
-            "s3_key": s3_key,
-            "findings": parsed_obj.findings,
-            "labels": parsed_obj.labels,
-            "condition": parsed_obj.condition,
-            "raw_description": parsed_obj.raw_description,
-        }
+        analysis: ImageAnalysis = cast(ImageAnalysis, parsed_obj.model_dump())
         logger.debug(
             "image_analysed",
             s3_key=s3_key,
@@ -105,7 +95,7 @@ async def image_agent_node(state: AuditState) -> dict[str, Any]:
             # The exception is already logged inside _process_single_image
             new_errors.append(f"image_agent: {s3_key}: {result}")
         else:
-            analyses.append(result)
+            analyses.append(cast(ImageAnalysis, result))
 
     logger.info(
         "image_agent_complete",

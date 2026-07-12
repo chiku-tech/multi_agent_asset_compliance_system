@@ -35,6 +35,19 @@ router = APIRouter(prefix="/ingest", tags=["ingestion"])
 logger = structlog.get_logger(__name__)
 
 
+def _empty_ingest_response(asset_id: str, event: str) -> IngestResponse:
+    """Return a no-op ingestion response when processing is skipped."""
+    return IngestResponse(
+        asset_id=asset_id,
+        event=event,
+        documents_processed=0,
+        vectors_upserted=0,
+        vectors_deleted=0,
+        completed_at=datetime.now(UTC),
+        namespace=pinecone_service.namespace_for(asset_id),
+    )
+
+
 async def _describe_image(
     image_llm: BaseChatModel,
     s3_client: Any,
@@ -56,7 +69,9 @@ async def _describe_image(
     )
 
     messages = [
-        await s3_service.build_image_message(s3_client, settings.s3_bucket_name, document.s3_key, prompt_text)
+        await s3_service.build_image_message(
+            s3_client, settings.s3_bucket_name, document.s3_key, prompt_text
+        )
     ]
 
     response = await image_llm.ainvoke(messages)
@@ -163,15 +178,7 @@ async def ingest_documents(
         # Idempotency guard: if namespace already has vectors, skip processing
         if pinecone_service.namespace_has_docs(index, request.asset_id):
             log.info("ingest_skipped_namespace_exists")
-            return IngestResponse(
-                asset_id=request.asset_id,
-                event=request.event,
-                documents_processed=0,
-                vectors_upserted=0,
-                vectors_deleted=0,
-                completed_at=datetime.now(UTC),
-                namespace=pinecone_service.namespace_for(request.asset_id),
-            )
+            return _empty_ingest_response(request.asset_id, request.event)
 
     elif request.event == "update":
         # update requires exactly one document for surgical replacement
@@ -215,7 +222,7 @@ async def ingest_documents(
         vectors_deleted=total_deleted,
         completed_at=datetime.now(UTC),
         namespace=pinecone_service.namespace_for(request.asset_id),
-        )
+    )
 
 
 @router.post(
@@ -245,15 +252,7 @@ async def upload_and_ingest_documents(
         # Idempotency guard: if namespace already has vectors, skip processing
         if pinecone_service.namespace_has_docs(index, asset_id):
             log.info("upload_skipped_namespace_exists")
-            return IngestResponse(
-                asset_id=asset_id,
-                event=event,
-                documents_processed=0,
-                vectors_upserted=0,
-                vectors_deleted=0,
-                completed_at=datetime.now(UTC),
-                namespace=pinecone_service.namespace_for(asset_id),
-            )
+            return _empty_ingest_response(asset_id, event)
 
     documents = []
     # Process each uploaded file: save to S3 first

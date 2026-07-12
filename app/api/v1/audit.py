@@ -42,6 +42,7 @@ from app.rate_limiter import limiter  # shared singleton
 from app.schemas.audit import AuditRequest
 from app.services import dynamodb_service
 from app.utils.exceptions import conflict_error
+from app.utils.sanitization import escape_value
 from app.utils.streaming import NodeCompleteEvent, VerdictEvent, serialise_event
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -70,7 +71,7 @@ async def _stream_audit(
         run_id=request.run_id,
         asset_spec=request.asset_spec,
         s3_image_keys=request.s3_image_keys,
-        auditor_remarks=request.auditor_remarks,
+        auditor_remarks=escape_value(request.auditor_remarks),
         previous_verdicts=[v.model_dump() for v in (request.previous_verdicts or [])],
         errors=[],
     )

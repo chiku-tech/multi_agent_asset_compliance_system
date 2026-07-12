@@ -97,7 +97,9 @@ def _build_insufficient_data_verdict(
         "run_id": state["run_id"],
         "compliance_status": "INSUFFICIENT_DATA",
         "confidence": 0.0,
-        "triggered_rules": triggered_rules if triggered_rules is not None else state.get("triggered_rules", []),
+        "triggered_rules": triggered_rules
+        if triggered_rules is not None
+        else state.get("triggered_rules", []),
         "evidence": state.get("evidence_bundle", []),
         "recommendations": recommendations,
         "verdict_reasoning": reasoning,

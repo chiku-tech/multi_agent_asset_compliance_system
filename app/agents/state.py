@@ -15,15 +15,19 @@ Field groups:
     so the graph always completes and returns a partial verdict
 """
 
-import html
 import operator
 from typing import Annotated, Any, TypedDict, cast
 
 from app.schemas.audit import AssetSpec
+from app.utils.sanitization import escape_dict
 
 
 class ImageAnalysis(TypedDict):
-    """Structured result of LLM vision analysis for one audit photo."""
+    """Structured result of LLM vision analysis for one audit photo.
+
+    Mirrors ``app.schemas.image.ImageAnalysis`` but remains a TypedDict so it
+    can be stored directly in the LangGraph state dictionary.
+    """
 
     s3_key: str
     findings: list[str]  # Specific observations about defects or non-compliance
@@ -82,25 +86,6 @@ class AuditState(TypedDict, total=False):
     errors: Annotated[list[str], operator.add]
 
 
-def _escape_value(v: Any) -> Any:
-    """Recursively escape a value to prevent prompt injection."""
-    if isinstance(v, str):
-        return html.escape(v)
-    elif isinstance(v, dict):
-        return _escape_dict(v)
-    elif isinstance(v, list):
-        return [_escape_value(item) for item in v]
-    return v
-
-
-def _escape_dict(d: dict[str, Any]) -> dict[str, Any]:
-    """Recursively HTML-escape string values in a dictionary to prevent prompt injection (SEC-2)."""
-    result = {}
-    for k, v in d.items():
-        result[k] = _escape_value(v)
-    return result
-
-
 def get_asset_spec_dict(state: Any) -> dict[str, Any]:
     """Helper to safely extract a dictionary representation of asset_spec from state.
 
@@ -117,7 +102,7 @@ def get_asset_spec_dict(state: Any) -> dict[str, Any]:
     if not spec:
         return {}
     if isinstance(spec, dict):
-        return _escape_dict(spec)
+        return escape_dict(spec)
     if hasattr(spec, "model_dump"):
-        return _escape_dict(cast(dict[str, Any], spec.model_dump()))
+        return escape_dict(cast(dict[str, Any], spec.model_dump()))
     return {}

@@ -8,12 +8,14 @@ Tests MUST NOT make real network calls.
 Environment variables are set before any app imports so that Pydantic
 BaseSettings can initialise without requiring a real .env file.
 """
+# ruff: noqa: I001
 
 import os
 from unittest.mock import AsyncMock, MagicMock
 
 import boto3
 import pytest
+from httpx import ASGITransport, AsyncClient
 from moto import mock_aws
 
 # ── Set all required env vars before any app imports ─────────────────────────
@@ -111,6 +113,9 @@ def _create_mock_embeddings_instance(*args, **kwargs):
 patch("langchain.chat_models.init_chat_model", side_effect=_create_mock_chat_model_instance).start()
 patch("langchain.embeddings.init_embeddings", side_effect=_create_mock_embeddings_instance).start()
 
+from app.agents.state import AuditState  # noqa: E402
+from app.main import create_app  # noqa: E402
+
 
 # ── AWS fixtures ──────────────────────────────────────────────────────────────
 
@@ -171,6 +176,7 @@ def mock_dynamodb_table():
 def reset_circuit_breakers():
     """Reset all circuit breakers before each test to prevent state leakage."""
     from app.utils.circuit_breaker import _breakers
+
     _breakers.clear()
     yield
     _breakers.clear()
@@ -211,6 +217,47 @@ def mock_tavily_client():
         }
     )
     return client
+
+
+# ── Shared state factory ─────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def auth_headers() -> dict[str, str]:
+    """Return authenticated request headers for integration tests."""
+    return {"X-API-Key": "test-secret-key-minimum-32-chars-long"}
+
+
+@pytest.fixture()
+async def async_client():
+    """Provide an AsyncClient wired to a fresh FastAPI test app."""
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+@pytest.fixture()
+def make_audit_state():
+    """Factory fixture returning an AuditState with sensible defaults."""
+
+    def _factory(**overrides) -> AuditState:
+        defaults = {
+            "asset_id": "abc-123",
+            "run_id": "run-001",
+            "asset_spec": {"name": "Hydraulic Pump"},
+            "s3_image_keys": ["audits/img.jpg"],
+            "auditor_remarks": None,
+            "retrieved_chunks": [],
+            "image_analyses": [],
+            "triggered_rules": [],
+            "evidence_bundle": [],
+            "previous_verdicts": None,
+            "errors": [],
+        }
+        defaults.update(overrides)
+        return AuditState(**defaults)
+
+    return _factory
 
 
 # ── Shared test data ──────────────────────────────────────────────────────────

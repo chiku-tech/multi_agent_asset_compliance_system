@@ -62,7 +62,9 @@ class TestPutAuditRun:
         await dynamodb_service.put_audit_run(dynamodb_client, TABLE_NAME, "run-dup", "asset-abc")
 
         with pytest.raises(ClientError, match="ConditionalCheckFailed"):
-            await dynamodb_service.put_audit_run(dynamodb_client, TABLE_NAME, "run-dup", "asset-abc")
+            await dynamodb_service.put_audit_run(
+                dynamodb_client, TABLE_NAME, "run-dup", "asset-abc"
+            )
 
 
 class TestGetAuditRun:
@@ -157,7 +159,9 @@ class TestGetAssetRunSummary:
         await dynamodb_service.put_audit_run(dynamodb_client, TABLE_NAME, "run-s2", "sum-asset")
         await dynamodb_service.complete_audit_run(dynamodb_client, TABLE_NAME, "run-s2", {})
 
-        summary = await dynamodb_service.get_asset_run_summary(dynamodb_client, TABLE_NAME, "sum-asset")
+        summary = await dynamodb_service.get_asset_run_summary(
+            dynamodb_client, TABLE_NAME, "sum-asset"
+        )
         assert summary["asset_id"] == "sum-asset"
         assert summary["total_runs"] == 2
         assert summary["status_counts"][dynamodb_service.STATUS_IN_PROGRESS] == 1
@@ -166,6 +170,8 @@ class TestGetAssetRunSummary:
 
     async def test_returns_empty_summary_for_unknown_asset(self, dynamodb_client):
         """get_asset_run_summary should return zero counts for an asset with no runs."""
-        summary = await dynamodb_service.get_asset_run_summary(dynamodb_client, TABLE_NAME, "no-asset")
+        summary = await dynamodb_service.get_asset_run_summary(
+            dynamodb_client, TABLE_NAME, "no-asset"
+        )
         assert summary["total_runs"] == 0
         assert summary["latest_run_at"] is None

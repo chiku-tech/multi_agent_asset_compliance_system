@@ -26,5 +26,7 @@ async def call_structured_llm(
     recovery_timeout: int = 60,
 ) -> T:
     structured_llm = llm.with_structured_output(output_model)
-    cb = circuit_breaker(circuit_name, failure_threshold=failure_threshold, recovery_timeout=recovery_timeout)
+    cb = circuit_breaker(
+        circuit_name, failure_threshold=failure_threshold, recovery_timeout=recovery_timeout
+    )
     return await cb(structured_llm.ainvoke)(messages)  # type: ignore[no-any-return]

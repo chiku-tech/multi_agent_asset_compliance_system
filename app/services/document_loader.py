@@ -44,7 +44,9 @@ def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     if overlap < 0:
         raise ValueError(f"overlap must be non-negative, got {overlap}")
     if overlap >= chunk_size:
-        raise ValueError(f"overlap ({overlap}) must be less than chunk_size ({chunk_size}) to prevent infinite loop")
+        raise ValueError(
+            f"overlap ({overlap}) must be less than chunk_size ({chunk_size}) to prevent infinite loop"
+        )
 
     chunks: list[str] = []
     start = 0

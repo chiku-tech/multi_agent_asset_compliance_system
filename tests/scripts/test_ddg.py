@@ -13,9 +13,7 @@ async def test_ddg_search_returns_results():
     """DDG search should return a list of results."""
     from app.services import ddg_service
 
-    mock_results = [
-        {"title": "Test", "href": "https://example.com", "body": "Test content"}
-    ]
+    mock_results = [{"title": "Test", "href": "https://example.com", "body": "Test content"}]
 
     with patch.object(ddg_service, "search_web", new_callable=AsyncMock) as mock_search:
         mock_search.return_value = mock_results

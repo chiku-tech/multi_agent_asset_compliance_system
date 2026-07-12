@@ -58,8 +58,7 @@ Rules:
 def _build_rag_context(chunks: list[dict[str, Any]]) -> str:
     """Format retrieved Pinecone chunks as context, delegating to the shared formatter."""
     flat_chunks = [
-        {**c["metadata"], "filename": c["metadata"].get("filename", "unknown")}
-        for c in chunks
+        {**c["metadata"], "filename": c["metadata"].get("filename", "unknown")} for c in chunks
     ]
     return format_chunks_for_prompt(flat_chunks, separator="\n\n---\n\n")
 

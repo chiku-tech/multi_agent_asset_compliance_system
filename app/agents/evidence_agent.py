@@ -130,7 +130,9 @@ async def evidence_agent_node(state: AuditState) -> dict[str, Any]:
             error=type(exc).__name__,
             error_msg=str(exc)[:200],
         )
-        state.setdefault("errors", []).append(f"Evidence agent error: {type(exc).__name__}: {str(exc)[:200]}")
+        state.setdefault("errors", []).append(
+            f"Evidence agent error: {type(exc).__name__}: {str(exc)[:200]}"
+        )
 
     # Cap the bundle to prevent context window explosion and massive API payloads
     original_count = len(evidence)
