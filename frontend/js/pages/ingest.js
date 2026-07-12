@@ -301,7 +301,7 @@
         const item = document.createElement('div');
         item.className = 'ingest-file-item';
         
-        const sizeStr = this.formatBytes(file.size);
+        const sizeStr = window.Utils.formatBytes(file.size);
         
         // Auto-infer type for display
         const ext = file.name.split('.').pop().toLowerCase();
@@ -320,7 +320,7 @@
         item.innerHTML = `
           <div class="file-item-header">
             <div class="file-item-info">
-              <span class="file-item-name">${this.escapeHtml(file.name)}</span>
+              <span class="file-item-name">${window.Utils.escapeHtml(file.name)}</span>
               <span class="file-item-meta">${sizeStr} | Inferred: <strong>${inferredType}</strong></span>
             </div>
             <div class="file-item-controls">
@@ -656,25 +656,6 @@
       if (window.Toast) {
         window.Toast.error(msg);
       }
-    },
-
-    formatBytes(bytes, decimals = 2) {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const dm = decimals < 0 ? 0 : decimals;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    },
-
-    escapeHtml(str) {
-      if (!str) return '';
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
     },
 
     destroy() {

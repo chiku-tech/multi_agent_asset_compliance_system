@@ -13,7 +13,6 @@ Populates: state["verdict"]
 """
 
 import json
-from datetime import UTC, datetime
 from typing import Any, Literal
 
 import structlog
@@ -22,8 +21,9 @@ from pydantic import BaseModel, Field
 
 from app.agents.state import AuditState, get_asset_spec_dict
 from app.dependencies import get_verdict_agent_llm
-from app.utils.circuit_breaker import circuit_breaker
+from app.utils.llm import call_structured_llm
 from app.utils.retry import llm_retry
+from app.utils.time import utc_now_iso
 
 logger = structlog.get_logger(__name__)
 
@@ -80,9 +80,31 @@ INSTRUCTIONS:
 @llm_retry
 async def _call_verdict_llm(llm: Any, messages: list) -> VerdictOutput:
     """Helper to call verdict agent LLM with circuit breaker."""
-    structured_llm = llm.with_structured_output(VerdictOutput)
-    cb = circuit_breaker("llm_verdict", failure_threshold=3, recovery_timeout=60)
-    return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+    return await call_structured_llm(llm, VerdictOutput, messages, "llm_verdict")
+
+
+def _build_insufficient_data_verdict(
+    state: AuditState,
+    recommendations: list[str],
+    reasoning: str,
+    errors: list[str],
+    generated_at: str,
+    *,
+    triggered_rules: list | None = None,
+) -> dict[str, Any]:
+    return {
+        "asset_id": state["asset_id"],
+        "run_id": state["run_id"],
+        "compliance_status": "INSUFFICIENT_DATA",
+        "confidence": 0.0,
+        "triggered_rules": triggered_rules if triggered_rules is not None else state.get("triggered_rules", []),
+        "evidence": state.get("evidence_bundle", []),
+        "recommendations": recommendations,
+        "verdict_reasoning": reasoning,
+        "documents_consulted": state.get("documents_consulted", []),
+        "generated_at": generated_at,
+        "errors": errors if errors else None,
+    }
 
 
 async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
@@ -92,7 +114,7 @@ async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
     llm = get_verdict_agent_llm()
     new_errors: list[str] = []
     cumulative_errors: list[str] = list(state.get("errors", []))
-    generated_at = datetime.now(UTC).isoformat()
+    generated_at = utc_now_iso()
 
     try:
         asset_spec_dict = get_asset_spec_dict(state)
@@ -106,25 +128,20 @@ async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
                 cumulative_errors.append(no_docs_error)
             new_errors.append(no_docs_error)
 
-            verdict = {
-                "asset_id": state["asset_id"],
-                "run_id": state["run_id"],
-                "compliance_status": "INSUFFICIENT_DATA",
-                "confidence": 0.0,
-                "triggered_rules": [],
-                "evidence": state.get("evidence_bundle", []),
-                "recommendations": [
+            verdict = _build_insufficient_data_verdict(
+                state=state,
+                recommendations=[
                     "No compliance reference documents or vector embeddings were found for this asset in the vector database.",
                     "Please upload and ingest reference documentation (such as user manuals, safety sheets, or compliance specification documents) before initiating the audit pipeline.",
                 ],
-                "verdict_reasoning": (
+                reasoning=(
                     f"Compliance audit aborted: No reference document embeddings found in the vector database for Asset '{asset_name}' "
                     f"(ID: '{state['asset_id']}'). Active compliance auditing requires pre-existing reference standards to cross-reference against visual evidence."
                 ),
-                "documents_consulted": [],
-                "generated_at": generated_at,
-                "errors": cumulative_errors if cumulative_errors else None,
-            }
+                errors=cumulative_errors,
+                generated_at=generated_at,
+                triggered_rules=[],
+            )
             logger.info(
                 "verdict_agent_no_embeddings_fallback",
                 asset_id=state["asset_id"],
@@ -186,17 +203,11 @@ async def verdict_agent_node(state: AuditState) -> dict[str, Any]:
         cumulative_errors.append(err_msg)
 
     # Fallback verdict — always return a well-formed response
-    fallback_verdict = {
-        "asset_id": state["asset_id"],
-        "run_id": state["run_id"],
-        "compliance_status": "INSUFFICIENT_DATA",
-        "confidence": 0.0,
-        "triggered_rules": state.get("triggered_rules", []),
-        "evidence": state.get("evidence_bundle", []),
-        "recommendations": ["Manual review required — automated analysis could not complete."],
-        "verdict_reasoning": "The automated verdict generation encountered an error. Manual review is required.",
-        "documents_consulted": state.get("documents_consulted", []),
-        "generated_at": generated_at,
-        "errors": cumulative_errors,
-    }
+    fallback_verdict = _build_insufficient_data_verdict(
+        state=state,
+        recommendations=["Manual review required — automated analysis could not complete."],
+        reasoning="The automated verdict generation encountered an error. Manual review is required.",
+        errors=cumulative_errors,
+        generated_at=generated_at,
+    )
     return {"verdict": fallback_verdict, "errors": new_errors}

@@ -25,20 +25,11 @@ from pydantic import BaseModel
 from app.agents.state import AuditState, get_asset_spec_dict
 from app.dependencies import get_rule_agent_llm
 from app.schemas.audit import TriggeredRule
-from app.utils.circuit_breaker import circuit_breaker
+from app.utils.formatting import format_chunks_for_prompt
+from app.utils.llm import call_structured_llm
 from app.utils.retry import llm_retry
 
 logger = structlog.get_logger(__name__)
-
-
-def _format_retrieved_docs(chunks: list[Any]) -> str:
-    """Format retrieved document chunks for the rule analysis prompt."""
-    if not chunks:
-        return "No documents retrieved."
-    return "\n\n".join(
-        f"[{c['filename']} | page {c.get('page', 'N/A')} | {c['doc_type']}]\n{c['text']}"
-        for c in chunks
-    )
 
 
 def _format_image_findings(analyses: list[Any]) -> str:
@@ -83,9 +74,7 @@ class RulesOutput(BaseModel):
 @llm_retry
 async def _call_rule_llm(llm: Any, messages: list) -> RulesOutput:
     """Helper to call rule agent LLM with circuit breaker."""
-    structured_llm = llm.with_structured_output(RulesOutput)
-    cb = circuit_breaker("llm_rule", failure_threshold=3, recovery_timeout=60)
-    return await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+    return await call_structured_llm(llm, RulesOutput, messages, "llm_rule")
 
 
 async def rule_agent_node(state: AuditState) -> dict[str, Any]:
@@ -100,7 +89,7 @@ async def rule_agent_node(state: AuditState) -> dict[str, Any]:
         asset_spec_json = json.dumps(asset_spec_dict, indent=2)
         prompt = _RULE_PROMPT_TEMPLATE.format(
             asset_spec=asset_spec_json,
-            retrieved_docs=_format_retrieved_docs(state.get("retrieved_chunks", [])),
+            retrieved_docs=format_chunks_for_prompt(state.get("retrieved_chunks", [])),
             image_findings=_format_image_findings(state.get("image_analyses", [])),
             auditor_remarks=state.get("auditor_remarks") or "None provided",
         )

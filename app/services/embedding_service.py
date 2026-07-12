@@ -10,18 +10,14 @@ All calls include tenacity retry logic for transient API errors.
 
 import structlog
 from langchain_core.embeddings import Embeddings
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
+from app.utils.resilience import embedding_call
 
 logger = structlog.get_logger(__name__)
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    reraise=True,
-)
+@embedding_call
 async def embed_texts(client: Embeddings, texts: list[str]) -> list[list[float]]:
     """
     Embed a list of strings and return one vector per input.
@@ -47,11 +43,7 @@ async def embed_texts(client: Embeddings, texts: list[str]) -> list[list[float]]
     return all_embeddings
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    reraise=True,
-)
+@embedding_call
 async def embed_query(client: Embeddings, text: str) -> list[float]:
     """
     Embed a single query string for retrieval-time similarity search.

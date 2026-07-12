@@ -20,7 +20,6 @@ evidence citations and chat responses.
 
 import hashlib
 import io
-from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -28,6 +27,7 @@ from pypdf import PdfReader
 
 from app.config import get_settings
 from app.schemas.ingest import S3Document
+from app.utils.time import utc_now_iso
 
 logger = structlog.get_logger(__name__)
 
@@ -98,7 +98,7 @@ def load_pdf(
                         "filename": document.filename,
                         "chunk_index": chunk_global_idx,
                         "page": page_num,
-                        "embedded_at": datetime.now(UTC).isoformat(),
+                        "embedded_at": utc_now_iso(),
                         # Stored in metadata so it can be returned in retrieval
                         # results without a separate fetch
                         "text": chunk_text,
@@ -143,7 +143,7 @@ def load_image_document(
                 "filename": document.filename,
                 "chunk_index": 0,
                 "page": None,
-                "embedded_at": datetime.now(UTC).isoformat(),
+                "embedded_at": utc_now_iso(),
                 "text": description,
             },
         }

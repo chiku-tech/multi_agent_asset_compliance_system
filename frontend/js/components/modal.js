@@ -173,4 +173,26 @@
   }
 
   window.Modal = new ModalManager();
+
+  /**
+   * Bind standard open/close modal triggers.
+   * @param {string} modalId - DOM id of the modal element
+   * @param {Array<HTMLElement>} openTriggers - elements that open the modal
+   * @param {Array<HTMLElement>} closeTriggers - elements that close the modal
+   * @returns {{modal: HTMLElement, closeModal: Function}}
+   */
+  window.Modal.bindStandardModal = function (modalId, openTriggers, closeTriggers) {
+    const modal = document.getElementById(modalId);
+    const closeModal = () => modal.classList.remove('open');
+
+    openTriggers.forEach(trigger => {
+      trigger.addEventListener('click', () => modal.classList.add('open'));
+    });
+
+    closeTriggers.forEach(trigger => {
+      trigger.addEventListener('click', closeModal);
+    });
+
+    return { modal, closeModal };
+  };
 })();

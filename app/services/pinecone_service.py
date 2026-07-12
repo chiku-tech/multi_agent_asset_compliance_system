@@ -16,24 +16,18 @@ from typing import Any
 
 import structlog
 from pinecone import Index
-from tenacity import retry, stop_after_attempt, wait_exponential
 
-from app.utils.circuit_breaker import circuit_breaker
+from app.utils.resilience import pinecone_call
 
 logger = structlog.get_logger(__name__)
 
 
-def _namespace(asset_id: str) -> str:
+def namespace_for(asset_id: str) -> str:
     """Construct the Pinecone namespace key for an asset."""
     return f"asset_{asset_id}"
 
 
-@circuit_breaker("pinecone", failure_threshold=3, recovery_timeout=30)
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
+@pinecone_call
 def upsert_vectors(
     index: Index,
     asset_id: str,
@@ -46,7 +40,7 @@ def upsert_vectors(
     request size limits. Returns the total number of vectors upserted.
     Retries up to 3 times with exponential backoff on transient errors.
     """
-    namespace = _namespace(asset_id)
+    namespace = namespace_for(asset_id)
     batch_size = 100
     total = 0
     for i in range(0, len(vectors), batch_size):
@@ -63,12 +57,7 @@ def upsert_vectors(
     return total
 
 
-@circuit_breaker("pinecone", failure_threshold=3, recovery_timeout=30)
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
+@pinecone_call
 def delete_by_doc_id(index: Index, asset_id: str, doc_id: str) -> int:
     """
     Delete all vectors belonging to a specific document within an asset namespace.
@@ -79,7 +68,7 @@ def delete_by_doc_id(index: Index, asset_id: str, doc_id: str) -> int:
 
     Returns the count of deleted vectors (best-effort from stats diff).
     """
-    namespace = _namespace(asset_id)
+    namespace = namespace_for(asset_id)
     prefix = f"{asset_id}_{doc_id}_"
     deleted_count = 0
 
@@ -97,12 +86,7 @@ def delete_by_doc_id(index: Index, asset_id: str, doc_id: str) -> int:
     return deleted_count
 
 
-@circuit_breaker("pinecone", failure_threshold=3, recovery_timeout=30)
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
+@pinecone_call
 def query_namespace(
     index: Index,
     asset_id: str,
@@ -120,7 +104,7 @@ def query_namespace(
     Pass doc_type_filter to restrict retrieval to a specific document type.
     Returns a list of result dicts with keys: id, score, metadata.
     """
-    namespace = _namespace(asset_id)
+    namespace = namespace_for(asset_id)
     query_filter = None
     if doc_type_filter:
         query_filter = {"doc_type": {"$eq": doc_type_filter}}
@@ -154,13 +138,13 @@ def query_namespace(
 def namespace_has_docs(index: Index, asset_id: str) -> bool:
     """Return True if this asset's namespace already contains vectors."""
     stats = index.describe_index_stats()
-    ns = stats.namespaces.get(_namespace(asset_id))
+    ns = stats.namespaces.get(namespace_for(asset_id))
     return ns is not None and getattr(ns, "vector_count", 0) > 0
 
 
 def doc_id_exists(index: Index, asset_id: str, doc_id: str) -> bool:
     """Return True if vectors with this doc_id already exist in the namespace."""
-    namespace = _namespace(asset_id)
+    namespace = namespace_for(asset_id)
     prefix = f"{asset_id}_{doc_id}_"
 
     try:
@@ -174,12 +158,7 @@ def doc_id_exists(index: Index, asset_id: str, doc_id: str) -> bool:
     return False
 
 
-@circuit_breaker("pinecone", failure_threshold=3, recovery_timeout=30)
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
+@pinecone_call
 def delete_namespace(index: Index, asset_id: str) -> int:
     """
     Delete ALL vectors in an asset's Pinecone namespace.
@@ -190,7 +169,7 @@ def delete_namespace(index: Index, asset_id: str) -> int:
 
     Returns the number of vectors deleted (best-effort via stats diff).
     """
-    namespace = _namespace(asset_id)
+    namespace = namespace_for(asset_id)
 
     # Snapshot count before deletion
     stats_before = index.describe_index_stats()

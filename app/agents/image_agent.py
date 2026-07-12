@@ -15,18 +15,17 @@ so that one bad image does not abort the entire audit.
 Populates: state["image_analyses"]
 """
 
+import asyncio
 from typing import Any
 
-import asyncio
 import structlog
-from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
 from app.agents.state import AuditState, ImageAnalysis
 from app.config import get_settings
 from app.dependencies import get_image_agent_llm, get_s3_client
 from app.services import s3_service
-from app.utils.circuit_breaker import circuit_breaker
+from app.utils.llm import call_structured_llm
 from app.utils.retry import llm_retry
 
 logger = structlog.get_logger(__name__)
@@ -49,25 +48,11 @@ async def _process_single_image(
 ) -> ImageAnalysis | Exception:
     """Helper to process a single image, returning the analysis or catching the exception."""
     try:
-        image_b64 = await s3_service.download_as_base64(s3_client, settings.s3_bucket_name, s3_key)
-        filename = s3_key.rsplit("/", 1)[-1]
-        media_type = s3_service.infer_media_type(filename)
-
-        # LangChain standard multimodal format
-        image_url = f"data:{media_type};base64,{image_b64}"
-
         messages = [
-            HumanMessage(
-                content=[
-                    {"type": "text", "text": _IMAGE_ANALYSIS_PROMPT},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ]
-            )
+            await s3_service.build_image_message(s3_client, settings.s3_bucket_name, s3_key, _IMAGE_ANALYSIS_PROMPT)
         ]
 
-        structured_llm = llm.with_structured_output(ImageAnalysisOutput)
-        cb = circuit_breaker("llm_image", failure_threshold=3, recovery_timeout=60)
-        parsed_obj: ImageAnalysisOutput = await cb(structured_llm.ainvoke)(messages)  # type: ignore[assignment]
+        parsed_obj = await call_structured_llm(llm, ImageAnalysisOutput, messages, "llm_image")
 
         analysis: ImageAnalysis = {
             "s3_key": s3_key,

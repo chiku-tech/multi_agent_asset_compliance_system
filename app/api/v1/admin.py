@@ -51,7 +51,7 @@ async def get_asset_stats(
 
     # ── Pinecone namespace stats ───────────────────────────────────────────────
     stats = index.describe_index_stats()
-    namespace_key = f"asset_{asset_id}"
+    namespace_key = pinecone_service.namespace_for(asset_id)
     ns = stats.namespaces.get(namespace_key)
     vector_count = getattr(ns, "vector_count", 0) if ns else 0
 

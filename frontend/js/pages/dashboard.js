@@ -101,7 +101,7 @@
       }
 
       this.activityTableBody.innerHTML = entries.map(entry => {
-        const dateStr = this.formatDate(entry.timestamp);
+        const dateStr = window.Utils.formatDate(entry.timestamp);
         let badgeClass = 'badge-insufficient';
         if (entry.status === 'success') badgeClass = 'badge-compliant';
         if (entry.status === 'warning') badgeClass = 'badge-warning';
@@ -113,10 +113,10 @@
               ${dateStr}
             </td>
             <td style="padding: 12px 16px; font-weight: 600; color: var(--on-surface);">
-              ${this.escapeHtml(entry.action)}
+              ${window.Utils.escapeHtml(entry.action)}
             </td>
             <td style="padding: 12px 16px; color: var(--on-surface-variant); max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${this.escapeHtml(entry.details)}
+              ${window.Utils.escapeHtml(entry.details)}
             </td>
             <td style="padding: 12px 16px; text-align: right;">
               <span class="badge ${badgeClass}" style="font-size: 10px;">${entry.status.toUpperCase()}</span>
@@ -177,25 +177,6 @@
           }
         });
       }
-    },
-
-    formatDate(isoString) {
-      try {
-        const d = new Date(isoString);
-        return d.toLocaleString();
-      } catch (_) {
-        return isoString;
-      }
-    },
-
-    escapeHtml(str) {
-      if (!str) return '';
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
     },
 
     destroy() {

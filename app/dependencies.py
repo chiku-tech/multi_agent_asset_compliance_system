@@ -21,7 +21,6 @@ from langchain.embeddings import init_embeddings
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from pinecone import Index, Pinecone
-
 from pydantic import SecretStr
 
 from app.config import Settings, get_settings

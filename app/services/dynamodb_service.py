@@ -23,13 +23,16 @@ Table schema
   expires_at           : int  — Unix epoch for DynamoDB TTL (30-day retention)
 """
 
-import asyncio
 import json
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
+
+from app.utils.async_helpers import run_in_thread
+from app.utils.resilience import dynamodb_call
+from app.utils.time import utc_now_iso
 
 logger = structlog.get_logger(__name__)
 
@@ -41,10 +44,6 @@ STATUS_FAILED = "FAILED"
 STATUS_ERASED = "ERASED"
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def _ttl_epoch() -> int:
     return int((datetime.now(UTC) + timedelta(days=_TTL_DAYS)).timestamp())
 
@@ -52,18 +51,14 @@ def _ttl_epoch() -> int:
 # ── Sync helpers (run in thread pool to avoid blocking the event loop) ──────
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    reraise=True,
-)
+@dynamodb_call
 def _put_audit_run_sync(
     dynamodb_client: Any,
     table_name: str,
     run_id: str,
     asset_id: str,
 ) -> None:
-    now = _now_iso()
+    now = utc_now_iso()
     dynamodb_client.put_item(
         TableName=table_name,
         Item={
@@ -79,11 +74,7 @@ def _put_audit_run_sync(
     logger.info("audit_run_created", run_id=run_id, asset_id=asset_id)
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    reraise=True,
-)
+@dynamodb_call
 def _get_audit_run_sync(
     dynamodb_client: Any,
     table_name: str,
@@ -112,11 +103,7 @@ def _get_audit_run_sync(
     return result
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    reraise=True,
-)
+@dynamodb_call
 def _complete_audit_run_sync(
     dynamodb_client: Any,
     table_name: str,
@@ -131,17 +118,13 @@ def _complete_audit_run_sync(
         ExpressionAttributeValues={
             ":s": {"S": STATUS_COMPLETE},
             ":v": {"S": json.dumps(verdict, default=str)},
-            ":u": {"S": _now_iso()},
+            ":u": {"S": utc_now_iso()},
         },
     )
     logger.info("audit_run_completed", run_id=run_id)
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    reraise=True,
-)
+@dynamodb_call
 def _fail_audit_run_sync(
     dynamodb_client: Any,
     table_name: str,
@@ -156,17 +139,13 @@ def _fail_audit_run_sync(
         ExpressionAttributeValues={
             ":s": {"S": STATUS_FAILED},
             ":e": {"S": error[:1000]},
-            ":u": {"S": _now_iso()},
+            ":u": {"S": utc_now_iso()},
         },
     )
     logger.warning("audit_run_failed", run_id=run_id, error=error[:200])
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    reraise=True,
-)
+@dynamodb_call
 def _update_item_erased(
     dynamodb_client: Any,
     table_name: str,
@@ -179,9 +158,38 @@ def _update_item_erased(
         ExpressionAttributeNames={"#s": "status"},
         ExpressionAttributeValues={
             ":s": {"S": STATUS_ERASED},
-            ":u": {"S": _now_iso()},
+            ":u": {"S": utc_now_iso()},
         },
     )
+
+
+def _query_asset_runs_by_asset_id(
+    dynamodb_client: Any,
+    table_name: str,
+    asset_id: str,
+    projection: str | None = None,
+    expression_attribute_names: dict[str, str] | None = None,
+) -> Iterator[list[dict[str, Any]]]:
+    kwargs: dict[str, Any] = {
+        "TableName": table_name,
+        "IndexName": "AssetIdIndex",
+        "KeyConditionExpression": "asset_id = :aid",
+        "ExpressionAttributeValues": {":aid": {"S": asset_id}},
+    }
+    if projection:
+        kwargs["ProjectionExpression"] = projection
+    if expression_attribute_names:
+        kwargs["ExpressionAttributeNames"] = expression_attribute_names
+
+    while True:
+        response = dynamodb_client.query(**kwargs)
+        items = response.get("Items", [])
+        if items:
+            yield items
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        kwargs["ExclusiveStartKey"] = last_key
 
 
 def _erase_asset_runs_sync(
@@ -190,29 +198,11 @@ def _erase_asset_runs_sync(
     asset_id: str,
 ) -> int:
     erased_count = 0
-    last_evaluated_key: dict[str, Any] | None = None
 
-    while True:
-        kwargs: dict[str, Any] = {
-            "TableName": table_name,
-            "IndexName": "AssetIdIndex",
-            "KeyConditionExpression": "asset_id = :aid",
-            "ExpressionAttributeValues": {":aid": {"S": asset_id}},
-            "ProjectionExpression": "run_id",
-        }
-        if last_evaluated_key:
-            kwargs["ExclusiveStartKey"] = last_evaluated_key
-
-        response = dynamodb_client.query(**kwargs)
-        items = response.get("Items", [])
-
+    for items in _query_asset_runs_by_asset_id(dynamodb_client, table_name, asset_id, projection="run_id"):
         for item in items:
             _update_item_erased(dynamodb_client, table_name, item["run_id"]["S"])
             erased_count += 1
-
-        last_evaluated_key = response.get("LastEvaluatedKey")
-        if not last_evaluated_key:
-            break
 
     logger.info("asset_runs_erased", asset_id=asset_id, count=erased_count)
     return erased_count
@@ -226,23 +216,12 @@ def _get_asset_run_summary_sync(
     status_counts: dict[str, int] = {}
     latest_run_at: str | None = None
     total_runs = 0
-    last_evaluated_key: dict[str, Any] | None = None
 
-    while True:
-        kwargs: dict[str, Any] = {
-            "TableName": table_name,
-            "IndexName": "AssetIdIndex",
-            "KeyConditionExpression": "asset_id = :aid",
-            "ExpressionAttributeValues": {":aid": {"S": asset_id}},
-            "ProjectionExpression": "run_id, #s, created_at",
-            "ExpressionAttributeNames": {"#s": "status"},
-        }
-        if last_evaluated_key:
-            kwargs["ExclusiveStartKey"] = last_evaluated_key
-
-        response = dynamodb_client.query(**kwargs)
-        items = response.get("Items", [])
-
+    for items in _query_asset_runs_by_asset_id(
+        dynamodb_client, table_name, asset_id,
+        projection="run_id, #s, created_at",
+        expression_attribute_names={"#s": "status"},
+    ):
         for item in items:
             total_runs += 1
             status = item["status"]["S"]
@@ -250,10 +229,6 @@ def _get_asset_run_summary_sync(
             created = item["created_at"]["S"]
             if latest_run_at is None or created > latest_run_at:
                 latest_run_at = created
-
-        last_evaluated_key = response.get("LastEvaluatedKey")
-        if not last_evaluated_key:
-            break
 
     return {
         "asset_id": asset_id,
@@ -266,64 +241,19 @@ def _get_asset_run_summary_sync(
 # ── Async public API ───────────────────────────────────────────────────────
 
 
-async def put_audit_run(
-    dynamodb_client: Any,
-    table_name: str,
-    run_id: str,
-    asset_id: str,
-) -> None:
-    return await asyncio.to_thread(
-        _put_audit_run_sync, dynamodb_client, table_name, run_id, asset_id
-    )
+put_audit_run = run_in_thread(_put_audit_run_sync)
 
 
-async def get_audit_run(
-    dynamodb_client: Any,
-    table_name: str,
-    run_id: str,
-) -> dict[str, Any] | None:
-    return await asyncio.to_thread(
-        _get_audit_run_sync, dynamodb_client, table_name, run_id
-    )
+get_audit_run = run_in_thread(_get_audit_run_sync)
 
 
-async def complete_audit_run(
-    dynamodb_client: Any,
-    table_name: str,
-    run_id: str,
-    verdict: dict[str, Any],
-) -> None:
-    return await asyncio.to_thread(
-        _complete_audit_run_sync, dynamodb_client, table_name, run_id, verdict
-    )
+complete_audit_run = run_in_thread(_complete_audit_run_sync)
 
 
-async def fail_audit_run(
-    dynamodb_client: Any,
-    table_name: str,
-    run_id: str,
-    error: str,
-) -> None:
-    return await asyncio.to_thread(
-        _fail_audit_run_sync, dynamodb_client, table_name, run_id, error
-    )
+fail_audit_run = run_in_thread(_fail_audit_run_sync)
 
 
-async def erase_asset_runs(
-    dynamodb_client: Any,
-    table_name: str,
-    asset_id: str,
-) -> int:
-    return await asyncio.to_thread(
-        _erase_asset_runs_sync, dynamodb_client, table_name, asset_id
-    )
+erase_asset_runs = run_in_thread(_erase_asset_runs_sync)
 
 
-async def get_asset_run_summary(
-    dynamodb_client: Any,
-    table_name: str,
-    asset_id: str,
-) -> dict[str, Any]:
-    return await asyncio.to_thread(
-        _get_asset_run_summary_sync, dynamodb_client, table_name, asset_id
-    )
+get_asset_run_summary = run_in_thread(_get_asset_run_summary_sync)

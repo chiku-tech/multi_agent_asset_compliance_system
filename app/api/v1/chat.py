@@ -35,6 +35,7 @@ from app.schemas.chat import ChatRequest, ChatResponse, SourceCitation
 from app.services import pinecone_service, web_search_service
 from app.services.embedding_service import embed_query
 from app.utils.circuit_breaker import circuit_breaker
+from app.utils.formatting import format_chunks_for_prompt
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = structlog.get_logger(__name__)
@@ -55,17 +56,12 @@ Rules:
 
 
 def _build_rag_context(chunks: list[dict[str, Any]]) -> str:
-    """Format retrieved Pinecone chunks as a structured context block."""
-    blocks = []
-    for c in chunks:
-        meta = c["metadata"]
-        header = (
-            f"[{meta.get('filename', 'unknown')} | "
-            f"page {meta.get('page', 'N/A')} | "
-            f"{meta.get('doc_type', '')}]"
-        )
-        blocks.append(f"{header}\n{meta.get('text', '')}")
-    return "\n\n---\n\n".join(blocks)
+    """Format retrieved Pinecone chunks as context, delegating to the shared formatter."""
+    flat_chunks = [
+        {**c["metadata"], "filename": c["metadata"].get("filename", "unknown")}
+        for c in chunks
+    ]
+    return format_chunks_for_prompt(flat_chunks, separator="\n\n---\n\n")
 
 
 def _build_spec_context(

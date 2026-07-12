@@ -6,18 +6,19 @@ Provides:
   - Base64 download for LLM vision calls (multimodal content blocks)
   - Presigned URL generation for secure temporary access
   - MIME type inference from filename extension
+  - Multimodal image message construction for LLM vision calls
 
 All download functions include tenacity retry logic for transient S3 errors.
 """
 
-import asyncio
 import base64
 from typing import Any
 
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
+from langchain_core.messages import HumanMessage
 
-from app.utils.circuit_breaker import circuit_breaker
+from app.utils.async_helpers import run_in_thread
+from app.utils.resilience import s3_call
 
 logger = structlog.get_logger(__name__)
 
@@ -32,12 +33,7 @@ _MIME_MAP: dict[str, str] = {
 }
 
 
-@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
+@s3_call
 def _download_bytes_sync(s3_client: Any, bucket: str, key: str) -> bytes:
     """Download an S3 object and return its raw bytes synchronously."""
     response = s3_client.get_object(Bucket=bucket, Key=key)
@@ -46,9 +42,7 @@ def _download_bytes_sync(s3_client: Any, bucket: str, key: str) -> bytes:
     return data
 
 
-async def download_bytes(s3_client: Any, bucket: str, key: str) -> bytes:
-    """Download an S3 object and return its raw bytes asynchronously using a worker thread."""
-    return await asyncio.to_thread(_download_bytes_sync, s3_client, bucket, key)
+download_bytes = run_in_thread(_download_bytes_sync)
 
 
 def _download_as_base64_sync(s3_client: Any, bucket: str, key: str) -> str:
@@ -59,17 +53,10 @@ def _download_as_base64_sync(s3_client: Any, bucket: str, key: str) -> str:
     return encoded
 
 
-async def download_as_base64(s3_client: Any, bucket: str, key: str) -> str:
-    """
-    Download an S3 image and return it as a base64-encoded string asynchronously.
-
-    Used for LLM multimodal vision calls where images must be passed
-    as base64 in the content block (not as URLs).
-    """
-    return await asyncio.to_thread(_download_as_base64_sync, s3_client, bucket, key)
+download_as_base64 = run_in_thread(_download_as_base64_sync)
 
 
-@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
+@s3_call
 def _generate_presigned_url_sync(
     s3_client: Any,
     bucket: str,
@@ -86,21 +73,7 @@ def _generate_presigned_url_sync(
     return url
 
 
-async def generate_presigned_url(
-    s3_client: Any,
-    bucket: str,
-    key: str,
-    expiry_seconds: int = 3600,
-) -> str:
-    """
-    Generate a presigned URL for temporary, authenticated S3 object access asynchronously.
-
-    Default expiry is 1 hour. All audit images are accessed via presigned
-    URLs — never made public.
-    """
-    return await asyncio.to_thread(
-        _generate_presigned_url_sync, s3_client, bucket, key, expiry_seconds
-    )
+generate_presigned_url = run_in_thread(_generate_presigned_url_sync)
 
 
 def infer_media_type(filename: str) -> str:
@@ -115,7 +88,26 @@ def infer_media_type(filename: str) -> str:
     return _MIME_MAP.get(ext, "application/octet-stream")
 
 
-@circuit_breaker("s3", failure_threshold=3, recovery_timeout=30)
+async def build_image_message(
+    s3_client: Any,
+    bucket: str,
+    s3_key: str,
+    prompt_text: str,
+) -> HumanMessage:
+    """Download an S3 image, encode as base64, and construct a multimodal HumanMessage."""
+    image_b64 = await download_as_base64(s3_client, bucket, s3_key)
+    filename = s3_key.rsplit("/", 1)[-1]
+    media_type = infer_media_type(filename)
+    image_url = f"data:{media_type};base64,{image_b64}"
+    return HumanMessage(
+        content=[
+            {"type": "text", "text": prompt_text},
+            {"type": "image_url", "image_url": {"url": image_url}},
+        ]
+    )
+
+
+@s3_call
 def _delete_asset_documents_sync(s3_client: Any, bucket: str, asset_id: str) -> int:
     """Delete all S3 objects under an asset prefix synchronously."""
     prefix = f"{asset_id}/"
@@ -144,9 +136,4 @@ def _delete_asset_documents_sync(s3_client: Any, bucket: str, asset_id: str) -> 
     return deleted_count
 
 
-async def delete_asset_documents(s3_client: Any, bucket: str, asset_id: str) -> int:
-    """
-    Delete all S3 objects associated with an asset.
-    Used for GDPR right-to-erasure compliance.
-    """
-    return await asyncio.to_thread(_delete_asset_documents_sync, s3_client, bucket, asset_id)
+delete_asset_documents = run_in_thread(_delete_asset_documents_sync)

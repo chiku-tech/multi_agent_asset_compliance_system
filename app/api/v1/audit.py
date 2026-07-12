@@ -31,16 +31,17 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agents.graph import audit_graph
 from app.agents.state import AuditState
 from app.config import get_settings
 from app.dependencies import DynamoDBDep, SettingsDep
-from app.rate_limiter import limiter  # shared singleton \u2014 avoids circular import
+from app.rate_limiter import limiter  # shared singleton
 from app.schemas.audit import AuditRequest
 from app.services import dynamodb_service
+from app.utils.exceptions import conflict_error
 from app.utils.streaming import NodeCompleteEvent, VerdictEvent, serialise_event
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -184,15 +185,12 @@ async def run_audit(
     if existing:
         if existing["status"] == dynamodb_service.STATUS_IN_PROGRESS:
             log.warning("audit_run_already_in_progress")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "AUDIT_IN_PROGRESS",
-                    "message": (
-                        f"Audit run '{audit_request.run_id}' is already in progress. "
-                        "Wait for it to complete or use a different run_id."
-                    ),
-                },
+            raise conflict_error(
+                message=(
+                    f"Audit run '{audit_request.run_id}' is already in progress. "
+                    "Wait for it to complete or use a different run_id."
+                ),
+                code="AUDIT_IN_PROGRESS",
             )
 
         if existing["status"] == dynamodb_service.STATUS_COMPLETE:
@@ -223,12 +221,9 @@ async def run_audit(
         error_name = type(exc).__name__
         if "ConditionalCheckFailed" in error_name or "ConditionalCheckFailed" in str(exc):
             log.warning("audit_run_race_condition_409")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "AUDIT_IN_PROGRESS",
-                    "message": f"Audit run '{audit_request.run_id}' was just started by another request.",
-                },
+            raise conflict_error(
+                message=f"Audit run '{audit_request.run_id}' was just started by another request.",
+                code="AUDIT_IN_PROGRESS",
             ) from exc
         raise
 

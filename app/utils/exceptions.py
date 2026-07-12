@@ -13,7 +13,9 @@ All errors returned to API clients follow a consistent JSON envelope:
 This makes error handling on the backend client side deterministic.
 """
 
+
 from fastapi import Request, status
+from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
 
@@ -61,6 +63,14 @@ class EmbeddingError(AssetComplianceBaseError):
 
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     error_code = "EMBEDDING_SERVICE_ERROR"
+
+
+def conflict_error(message: str, code: str = "CONFLICT") -> HTTPException:
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": code, "message": message})
+
+
+def bad_request_error(message: str, code: str = "BAD_REQUEST") -> HTTPException:
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": code, "message": message})
 
 
 async def asset_compliance_exception_handler(

@@ -74,14 +74,7 @@ async function init() {
 
 // Update API status display
 function updateApiKeyStatus() {
-  const key = window.Config.getApiKey();
-  if (key) {
-    apiStatusBadge.textContent = "Configured";
-    apiStatusBadge.className = "badge badge-success";
-  } else {
-    apiStatusBadge.textContent = "Not Configured";
-    apiStatusBadge.className = "badge badge-danger";
-  }
+  window.Utils.renderApiKeyStatus(apiStatusBadge, window.Config.getApiKey());
 }
 
 // Fetch Asset Statistics
@@ -193,14 +186,12 @@ function setupEventListeners() {
   // API Key modal open/close
   configureApiKeyBtn.addEventListener('click', () => {
     apiKeyInput.value = window.Config.getApiKey();
-    apiKeyModal.classList.add('open');
   });
-
-  const closeApiKeyModal = () => {
-    apiKeyModal.classList.remove('open');
-  };
-  closeApiKeyBtn.addEventListener('click', closeApiKeyModal);
-  cancelApiKeyBtn.addEventListener('click', closeApiKeyModal);
+  const { closeModal: closeApiKeyModal } = window.Modal.bindStandardModal(
+    'api-key-modal',
+    [configureApiKeyBtn],
+    [closeApiKeyBtn, cancelApiKeyBtn]
+  );
 
   // Save API Key
   saveApiKeyBtn.addEventListener('click', async () => {
@@ -247,11 +238,11 @@ function setupEventListeners() {
     erasureModal.classList.add('open');
   });
 
-  const closeErasureModal = () => {
-    erasureModal.classList.remove('open');
-  };
-  closeErasureBtn.addEventListener('click', closeErasureModal);
-  cancelErasureBtn.addEventListener('click', closeErasureModal);
+  const { closeModal: closeErasureModal } = window.Modal.bindStandardModal(
+    'erasure-modal',
+    [],
+    [closeErasureBtn, cancelErasureBtn]
+  );
 
   // Add validation listeners for GDPR deletion steps
   checkVectorDeletion.addEventListener('change', validateErasureConfirmation);

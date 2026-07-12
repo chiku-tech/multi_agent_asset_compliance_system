@@ -22,7 +22,6 @@ import structlog
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage
 from pinecone import Index
 
 from app.config import Settings
@@ -30,6 +29,7 @@ from app.dependencies import EmbeddingsDep, ImageLLMDep, PineconeDep, S3Dep, Set
 from app.schemas.ingest import IngestRequest, IngestResponse, S3Document
 from app.services import document_loader, pinecone_service, s3_service
 from app.services.embedding_service import embed_texts
+from app.utils.exceptions import bad_request_error
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 logger = structlog.get_logger(__name__)
@@ -48,12 +48,6 @@ async def _describe_image(
     The description is stored as the vector's text in Pinecone, allowing
     image documents to participate in semantic retrieval.
     """
-    image_b64 = await s3_service.download_as_base64(
-        s3_client, settings.s3_bucket_name, document.s3_key
-    )
-    media_type = s3_service.infer_media_type(document.filename)
-    image_url = f"data:{media_type};base64,{image_b64}"
-
     prompt_text = (
         f"This is an installation or reference image for asset ID '{asset_id}'. "
         "Describe all visible components, labels, connections, measurements, "
@@ -62,12 +56,7 @@ async def _describe_image(
     )
 
     messages = [
-        HumanMessage(
-            content=[
-                {"type": "text", "text": prompt_text},
-                {"type": "image_url", "image_url": {"url": image_url}},
-            ]
-        )
+        await s3_service.build_image_message(s3_client, settings.s3_bucket_name, document.s3_key, prompt_text)
     ]
 
     response = await image_llm.ainvoke(messages)
@@ -181,7 +170,7 @@ async def ingest_documents(
                 vectors_upserted=0,
                 vectors_deleted=0,
                 completed_at=datetime.now(UTC),
-                namespace=f"asset_{request.asset_id}",
+                namespace=pinecone_service.namespace_for(request.asset_id),
             )
 
     elif request.event == "update":
@@ -225,8 +214,8 @@ async def ingest_documents(
         vectors_upserted=total_upserted,
         vectors_deleted=total_deleted,
         completed_at=datetime.now(UTC),
-        namespace=f"asset_{request.asset_id}",
-    )
+        namespace=pinecone_service.namespace_for(request.asset_id),
+        )
 
 
 @router.post(
@@ -263,7 +252,7 @@ async def upload_and_ingest_documents(
                 vectors_upserted=0,
                 vectors_deleted=0,
                 completed_at=datetime.now(UTC),
-                namespace=f"asset_{asset_id}",
+                namespace=pinecone_service.namespace_for(asset_id),
             )
 
     documents = []
@@ -275,9 +264,8 @@ async def upload_and_ingest_documents(
         doc_id = f"doc_{safe_name.rsplit('.', 1)[0]}"
         # Validate asset_id to prevent path traversal
         if not re.match(r"^[a-zA-Z0-9_-]+$", asset_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="asset_id must contain only alphanumeric characters, hyphens, or underscores",
+            raise bad_request_error(
+                "asset_id must contain only alphanumeric characters, hyphens, or underscores"
             )
         s3_key = f"{asset_id}/{safe_name}"
 
@@ -340,5 +328,5 @@ async def upload_and_ingest_documents(
         vectors_upserted=total_upserted,
         vectors_deleted=total_deleted,
         completed_at=datetime.now(UTC),
-        namespace=f"asset_{asset_id}",
+        namespace=pinecone_service.namespace_for(asset_id),
     )
