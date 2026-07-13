@@ -257,15 +257,18 @@ async def upload_and_ingest_documents(
     documents = []
     # Process each uploaded file: save to S3 first
     for upload_file in files:
-        filename = upload_file.filename or "unnamed_file"
-        # Generate a safe doc_id and key from filename
-        safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
-        doc_id = f"doc_{safe_name.rsplit('.', 1)[0]}"
-        # Validate asset_id to prevent path traversal
+        # Validate asset_id first (BEFORE reading file bytes) to prevent path
+        # traversal and to short-circuit invalid requests without consuming
+        # request body bytes. This is required by the architectural blueprint
+        # (Section 3.2 Rule 6 / 4.5).
         if not re.match(r"^[a-zA-Z0-9_-]+$", asset_id):
             raise bad_request_error(
                 "asset_id must contain only alphanumeric characters, hyphens, or underscores"
             )
+        filename = upload_file.filename or "unnamed_file"
+        # Generate a safe doc_id and key from filename
+        safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
+        doc_id = f"doc_{safe_name.rsplit('.', 1)[0]}"
         s3_key = f"{asset_id}/{safe_name}"
 
         # Determine doc_type from filename extension
@@ -281,7 +284,7 @@ async def upload_and_ingest_documents(
         else:
             doc_type = "other"
 
-        # Read file bytes
+        # Read file bytes (only after all input validation has passed)
         raw_bytes = await upload_file.read()
 
         # Save to S3

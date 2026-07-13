@@ -13,8 +13,52 @@ Usage:
 from functools import lru_cache
 from typing import Literal, Self
 
+import structlog
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger(__name__)
+
+# Placeholder API key values commonly found in example ``.env`` files. The
+# auto-detect validator (see :meth:`Settings.validate_local_provider_defaults`)
+# uses this set to detect "obvious" placeholders and switch the corresponding
+# provider to ``local`` so that the application runs end-to-end without real
+# credentials.
+_PLACEHOLDER_API_KEY_VALUES: frozenset[str] = frozenset(
+    {
+        "sk-proj-xxx",
+        "sk-ant-xxx",
+        "sk-or-v1-...",
+        "your-pinecone-api-key",
+        "your-xai-grok-api-key",
+        "your-shared-secret-key-min-32-chars",
+        "your-langsmith-api-key",
+        "your-opencode-zen-api-key",
+        "your-opencode-go-api-key",
+    }
+)
+
+# Map an LLM provider string to the matching ``Settings`` attribute that
+# holds its API key. Used by the auto-detect validator to look up the
+# configured key for each agent's provider.
+_PROVIDER_API_KEY_FIELD: dict[str, str] = {
+    "openai": "openai_api_key",
+    "anthropic": "anthropic_api_key",
+    "google_genai": "google_api_key",
+    "xai": "xai_api_key",
+    "grok": "xai_api_key",
+    "openrouter": "openrouter_api_key",
+    "zen": "zen_api_key",
+    "opencode_go": "opencode_go_api_key",
+}
+
+# Agent provider field names. Each tuple is ``(provider_field, model_field)``.
+_AGENT_FIELDS: tuple[tuple[str, str], ...] = (
+    ("image_agent_provider", "image_agent_model"),
+    ("rule_agent_provider", "rule_agent_model"),
+    ("verdict_agent_provider", "verdict_agent_model"),
+    ("chat_agent_provider", "chat_agent_model"),
+)
 
 
 class Settings(BaseSettings):
@@ -58,6 +102,14 @@ class Settings(BaseSettings):
     google_api_key: SecretStr | None = Field(default=None, description="Google Gemini API key")
     xai_api_key: SecretStr | None = Field(default=None, description="xAI Grok API key")
     openrouter_api_key: SecretStr | None = Field(default=None, description="OpenRouter API key")
+    zen_api_key: SecretStr | None = Field(
+        default=None,
+        description="OpenCode Zen API key (https://opencode.ai/zen)",
+    )
+    opencode_go_api_key: SecretStr | None = Field(
+        default=None,
+        description="OpenCode Go API key (https://opencode.ai/zen/go)",
+    )
 
     # ── Agent Configuration ───────────────────────────────────────────────────
     image_agent_provider: str = Field(default="openai", description="LLM provider for image agent")
@@ -91,7 +143,11 @@ class Settings(BaseSettings):
     # ── Embeddings ────────────────────────────────────────────────────────────
     embedding_provider: str = Field(
         default="openai",
-        description="Embedding provider name (e.g. openai)",
+        description=(
+            "Embedding provider name. Valid values: openai, anthropic, "
+            "google_genai, local. The 'local' value uses the deterministic "
+            "offline LocalEmbeddings provider."
+        ),
     )
     embedding_model: str = Field(
         default="text-embedding-3-small",
@@ -100,6 +156,7 @@ class Settings(BaseSettings):
     embedding_dimensions: int = Field(
         default=1536,
         ge=1,
+        le=8192,
         description="Embedding vector dimensions — must match Pinecone index configuration",
     )
     embedding_batch_size: int = Field(
@@ -211,6 +268,77 @@ class Settings(BaseSettings):
             if "*" in self.cors_allowed_origins or ["*"] == self.cors_allowed_origins:
                 raise ValueError("Wildcard CORS (['*']) is not allowed in production environments.")
         return self
+
+    @model_validator(mode="after")
+    def validate_local_provider_defaults(self) -> Self:
+        """When ``local_offline`` is True, auto-switch provider strings to ``local``
+        if the corresponding API key is missing or is a known placeholder.
+
+        This makes local development friction-free: a user only needs to set
+        ``LOCAL_OFFLINE=True`` and the application will route the embeddings
+        and agent calls to the offline providers (``LocalEmbeddings`` and
+        ``LocalChatModel``) instead of failing on the placeholder keys shipped
+        with the example ``.env`` file.
+
+        The auto-detect ONLY activates when ``local_offline`` is True. In
+        staging and production the configured providers are left untouched
+        so that any missing key surfaces as an explicit startup failure.
+        """
+        if not self.local_offline:
+            return self
+
+        switched: list[str] = []
+
+        # 1) Embeddings: if configured for openai with a missing or placeholder
+        #    key, fall back to the offline LocalEmbeddings provider.
+        if self.embedding_provider == "openai" and self._is_placeholder_key(self.openai_api_key):
+            self.embedding_provider = "local"
+            switched.append("embedding_provider=local")
+
+        # 2) Agents: for each (image, rule, verdict, chat) agent, if the
+        #    currently configured provider has a missing or placeholder
+        #    key, switch that agent to the offline LocalChatModel.
+        for provider_field, _model_field in _AGENT_FIELDS:
+            current_provider: str = getattr(self, provider_field)
+            if current_provider == "local":
+                continue
+            api_key_field = _PROVIDER_API_KEY_FIELD.get(current_provider)
+            if api_key_field is None:
+                # Unknown provider — let the dependency factory surface the
+                # error at first use rather than guessing here.
+                continue
+            api_key_value = getattr(self, api_key_field)
+            if self._is_placeholder_key(api_key_value):
+                setattr(self, provider_field, "local")
+                switched.append(f"{provider_field}=local")
+
+        if switched:
+            logger.info(
+                "local_provider_auto_defaults_applied",
+                local_offline=self.local_offline,
+                switched=switched,
+            )
+        return self
+
+    @staticmethod
+    def _is_placeholder_key(api_key: SecretStr | None) -> bool:
+        """Return True if the supplied key is missing or is a known placeholder.
+
+        Used by :meth:`validate_local_provider_defaults` to decide whether
+        a configured provider should be auto-switched to ``local``.
+        """
+        if api_key is None:
+            return True
+        try:
+            value = api_key.get_secret_value()
+        except Exception:
+            return True
+        if value is None:
+            return True
+        stripped = value.strip()
+        if not stripped:
+            return True
+        return stripped in _PLACEHOLDER_API_KEY_VALUES
 
 
 @lru_cache
