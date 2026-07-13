@@ -644,7 +644,7 @@ async def test_zen_provider_initialisation(
     # ChatOpenAI stores the base URL in ``openai_api_base``. The Zen URL
     # is the canonical identifier we need to assert against.
     assert client.openai_api_base == ZEN_BASE_URL
-    assert ZEN_BASE_URL == "https://opencode.ai/zen/v1/chat/completions"
+    assert ZEN_BASE_URL == "https://opencode.ai/zen/v1"
 
     # Reset the LRU caches so subsequent tests see the conftest defaults
     # rather than the offline values left over from this test.
@@ -676,7 +676,7 @@ async def test_opencode_go_provider_initialisation(
 
     assert isinstance(client, ChatOpenAI)
     assert client.openai_api_base == OPENCODE_GO_BASE_URL
-    assert OPENCODE_GO_BASE_URL == "https://opencode.ai/zen/go/v1/chat/completions"
+    assert OPENCODE_GO_BASE_URL == "https://opencode.ai/zen/go/v1"
 
     _reset_caches_after_offline_test()
 

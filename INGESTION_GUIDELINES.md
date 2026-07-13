@@ -434,8 +434,8 @@ following providers are supported:
 | `google_genai` | Google Gemini; requires `GOOGLE_API_KEY`. |
 | `xai` / `grok` | xAI Grok; requires `XAI_API_KEY`. |
 | `openrouter` | OpenRouter gateway; requires `OPENROUTER_API_KEY`. Base URL: `https://openrouter.ai/api/v1`. |
-| `zen` | **OpenCode Zen** pay-as-you-go gateway; requires `ZEN_API_KEY`. Base URL: `https://opencode.ai/zen/v1/chat/completions`. |
-| `opencode_go` | **OpenCode Go** subscription gateway; requires `OPENCODE_GO_API_KEY`. Base URL: `https://opencode.ai/zen/go/v1/chat/completions`. |
+| `zen` | **OpenCode Zen** pay-as-you-go gateway; requires `ZEN_API_KEY`. Base URL: `https://opencode.ai/zen/v1`. |
+| `opencode_go` | **OpenCode Go** subscription gateway; requires `OPENCODE_GO_API_KEY`. Base URL: `https://opencode.ai/zen/go/v1`. |
 | `local` | Offline canned-response provider; no API key required. Only used in `LOCAL_OFFLINE=True`. |
 
 ### 6.1 OpenCode Zen & Go — important caveats

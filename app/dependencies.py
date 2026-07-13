@@ -53,10 +53,10 @@ logger = structlog.get_logger(__name__)
 
 # OpenCode Zen is an OpenAI-compatible chat gateway. The base URL is a
 # compile-time constant (NOT configurable via env var) to prevent SSRF.
-ZEN_BASE_URL: str = "https://opencode.ai/zen/v1/chat/completions"
+ZEN_BASE_URL: str = "https://opencode.ai/zen/v1"
 
 # OpenCode Go is the lower-cost subscription gateway. Same security posture.
-OPENCODE_GO_BASE_URL: str = "https://opencode.ai/zen/go/v1/chat/completions"
+OPENCODE_GO_BASE_URL: str = "https://opencode.ai/zen/go/v1"
 
 # OpenRouter gateway base URL (pinned to keep parity with the existing
 # implementation — moving it to config is out of scope for this blueprint).
