@@ -7,21 +7,23 @@ a downstream service (Pinecone, LLM, DDG) repeatedly fails.
 
 import asyncio
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 import structlog
-
-from app.utils.exceptions import AssetComplianceBaseError
 
 logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
 
 
-class CircuitBreakerOpenError(AssetComplianceBaseError):
+class CircuitBreakerOpenError(Exception):
     """Raised when the circuit breaker is OPEN and rejecting calls."""
-    pass
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
 
 
 class CircuitBreaker:
@@ -59,13 +61,16 @@ class CircuitBreaker:
 
         self.failure_count += 1
         self.last_failure_time = time.time()
-        
+
         if self.state != "OPEN" and self.failure_count >= self.failure_threshold:
             self.state = "OPEN"
-            logger.error("circuit_breaker_opened", circuit=self.name, threshold=self.failure_threshold)
+            logger.error(
+                "circuit_breaker_opened", circuit=self.name, threshold=self.failure_threshold
+            )
 
     def __call__(self, func: Callable[..., T]) -> Callable[..., T]:
         if asyncio.iscoroutinefunction(func):
+
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 self._check_state()
@@ -78,8 +83,10 @@ class CircuitBreaker:
                 except Exception as exc:
                     self._on_failure(exc)
                     raise
+
             return async_wrapper  # type: ignore
         else:
+
             @wraps(func)
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 self._check_state()
@@ -92,6 +99,7 @@ class CircuitBreaker:
                 except Exception as exc:
                     self._on_failure(exc)
                     raise
+
             return sync_wrapper  # type: ignore
 
 
